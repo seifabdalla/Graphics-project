@@ -2,9 +2,18 @@
 #include "Model_3DS.h"
 #include "GLTexture.h"
 #include <glut.h>
+#include <cmath>
+
+#define DEG2RAD(a) (a * 0.0174532925)
+
+
 
 int WIDTH = 1280;
 int HEIGHT = 720;
+float PlayerXPos = 0.0f;
+float PlayerZPos = 0.0f;
+float PlayerYPos = 0.5f;  // Adjust for ground level
+
 
 GLuint tex;
 char title[] = "3D Model Loader Sample";
@@ -37,15 +46,199 @@ Vector Eye(20, 5, 20);
 Vector At(0, 0, 0);
 Vector Up(0, 1, 0);
 
-int cameraZoom = 0;
+enum CameraView {
+	THIRD,
+	FIRST,
+};
+
+
+class Vector3f {
+public:
+	float x, y, z;
+
+	Vector3f(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f) {
+		x = _x;
+		y = _y;
+		z = _z;
+	}
+
+	Vector3f operator+(Vector3f& v) {
+		return Vector3f(x + v.x, y + v.y, z + v.z);
+	}
+
+	Vector3f operator-(Vector3f& v) {
+		return Vector3f(x - v.x, y - v.y, z - v.z);
+	}
+
+	Vector3f operator*(float n) {
+		return Vector3f(x * n, y * n, z * n);
+	}
+
+	Vector3f operator/(float n) {
+		return Vector3f(x / n, y / n, z / n);
+	}
+
+	Vector3f unit() {
+		return *this / sqrt(x * x + y * y + z * z);
+	}
+
+	Vector3f cross(Vector3f v) {
+		return Vector3f(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+	}
+};
+
+
+float playerXPos = 0.0f;
+float playerZPos = 0.0f;
+
+
+class Camera {
+public:
+	float distanceFromPlayer;
+	float pitch;
+	float angleAroundPlayer;
+	Vector3f playerPosition;
+	CameraView currentView;
+
+	Camera(float distance = 10.0f, float pitch = 10.0f, float angle = 0.0f) {
+		distanceFromPlayer = distance;
+		this->pitch = pitch;
+		angleAroundPlayer = angle;
+		playerPosition = Vector3f(0.0f, 0.0f, 0.0f);
+	}
+
+	void updateCameraPosition() {
+		if (currentView == THIRD) {
+			// Camera positioned slightly above and behind the car
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
+			eye = playerPosition + Vector3f(0.0f, 5.0f, -distanceFromPlayer); // Adjust these offsets as needed
+			center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking slightly above the player's position
+			up = Vector3f(0.0f, 1.0f, 0.0f);
+
+			
+		}
+		else if (currentView == FIRST) {
+			// Camera positioned at the level of the car and slightly forward
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos-4);
+			eye = playerPosition + Vector3f(0.0f, 0.8f, 4.0); // Slightly above and forward of the car's position
+			center = playerPosition + Vector3f(0.0f, 0.8f, 4.3); // Look further ahead from the car
+			up = Vector3f(0.0f, 0.1f, 0.0f);
+		}
+	}
+
+	void look() {
+		gluLookAt(
+			eye.x, eye.y, eye.z,
+			center.x, center.y, center.z,
+			up.x, up.y, up.z
+		);
+	}
+	Vector3f eye, center, up;
+};
+
+Camera camera;
+int lastMouseX, lastMouseY;
+bool rightMouseDown = false;
+
+void setupCamera() {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(60, 640.0 / 480.0, 0.1, 100.0);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	camera.look();
+}
+
+
+
+void MouseMotion(int x, int y) {
+	if (rightMouseDown) {
+		float sensitivity = 0.1f;
+
+		// Adjust pitch with right-click + vertical mouse movement
+		float deltaY = y - lastMouseY;
+		camera.pitch -= deltaY * sensitivity; // Move pitch based on vertical mouse movement
+
+		// Clamp pitch to avoid flipping the camera upside down
+		if (camera.pitch > 89.0f) camera.pitch = 89.0f;
+		if (camera.pitch < -89.0f) camera.pitch = -89.0f;
+	}
+	else {
+		// Adjust angleAroundPlayer with horizontal mouse movement
+		float sensitivity = 0.35f;
+		float deltaX = x - lastMouseX;
+		camera.angleAroundPlayer += deltaX * sensitivity;
+	}
+
+	// Update camera position based on new pitch and angleAroundPlayer
+	camera.updateCameraPosition();
+
+	lastMouseX = x;
+	lastMouseY = y;
+
+	glutPostRedisplay();
+}
+
+void MouseInit(int x, int y) {
+	lastMouseX = x;
+	lastMouseY = y;
+}
+
+void MouseButton(int button, int state, int x, int y) {
+	if (button == GLUT_RIGHT_BUTTON) {
+		rightMouseDown = (state == GLUT_DOWN);  // Set flag when right mouse button is pressed or released
+	}
+}
+
+void keyboard(unsigned char key, int x, int y) {
+	float speed = 1.0f; // Adjust movement speed
+
+	if (key == 's') {
+		playerZPos -= speed;
+		 // Zoom in
+		
+	}
+	else if (key == 'w') {
+		playerZPos += speed;
+		
+	}
+	else if (key == 'd') {
+		playerXPos -= speed;
+		camera.pitch += 1.0f;  // Increase pitch (move camera upwards)
+		if (camera.pitch > 89.0f) camera.pitch = 89.0f;  // Prevent flipping upside down
+	}
+	else if (key == 'a') {
+		playerXPos += speed;
+		camera.pitch -= 1.0f;  // Decrease pitch (move camera downwards)
+		if (camera.pitch < -89.0f) camera.pitch = -89.0f;  // Prevent flipping upside down
+	}
+
+	else if (key == 't') {
+		camera.currentView = THIRD;
+	}
+
+	else if (key == 'f') {
+		camera.currentView = FIRST;
+	}
+
+
+	camera.playerPosition = Vector3f(PlayerXPos, PlayerYPos, PlayerZPos);
+	camera.updateCameraPosition();
+
+	glutPostRedisplay();
+}
+
 
 // Model Variables
 Model_3DS model_house;
 Model_3DS model_tree;
 Model_3DS model_car;
+Model_3DS model_obstacle;
 
 // Textures
 GLTexture tex_ground;
+GLTexture tex_obs;
 
 //=======================================================================
 // Lighting Configuration Function
@@ -183,6 +376,7 @@ void myDisplay(void)
 
 	// Draw Ground
 	RenderGround();
+	setupCamera();
 
 	// Draw Tree Model
 	glPushMatrix();
@@ -198,15 +392,21 @@ void myDisplay(void)
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(10, 0, 10);
-	glRotatef(180.f, 0, 1, 0);
-	model_car.Draw();
+	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
+	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
+	model_car.Draw(); // Draw the car model
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(10, 0, -10);
+	glRotated(90, 0, 1, 0);
+	glScalef(0.2f, 0.2f, 0.2f); 
+	model_obstacle.Draw();
 	glPopMatrix();
 
 
 	//sky box
 	glPushMatrix();
-
 	GLUquadricObj* qobj;
 	qobj = gluNewQuadric();
 	glTranslated(50, 0, 0);
@@ -251,6 +451,11 @@ void myKeyboard(unsigned char button, int x, int y)
 //=======================================================================
 // Motion Function
 //=======================================================================
+
+
+int cameraZoom = 0;
+
+
 void myMotion(int x, int y)
 {
 	y = HEIGHT - y;
@@ -321,13 +526,18 @@ void myReshape(int w, int h)
 // Assets Loading Function
 //=======================================================================
 void LoadAssets()
-{	
+{
+	FILE* bin3ds = fopen("Models/car/car/queen.3ds", "rb");
+	if (!bin3ds) {
+		perror("Failed to open file");
+		exit(EXIT_FAILURE);
+	}
 
 	// Loading Model files
 	model_house.Load("Models/house/house.3DS");
 	model_tree.Load("Models/tree/Tree1.3ds");
-	model_car.Load("Models/car/Car.3ds");
-
+	model_car.Load("Models/car/car/queen.3ds");
+	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
@@ -351,6 +561,8 @@ void main(int argc, char** argv)
 	glutDisplayFunc(myDisplay);
 
 	glutKeyboardFunc(myKeyboard);
+
+	glutKeyboardFunc(keyboard);
 
 	glutMotionFunc(myMotion);
 

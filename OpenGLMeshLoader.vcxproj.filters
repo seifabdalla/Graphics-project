@@ -24,6 +24,8 @@
     <ClCompile Include="OpenGLMeshLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="Car.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GLTexture.h">
@@ -32,5 +34,7 @@
     <ClInclude Include="Model_3DS.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GameObject.h" />
+    <ClInclude Include="Car.h" />
   </ItemGroup>
 </Project>

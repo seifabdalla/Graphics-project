@@ -83,11 +83,15 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Car.cpp" />
+    <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GLTexture.cpp" />
     <ClCompile Include="Model_3DS.cpp" />
     <ClCompile Include="OpenGLMeshLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Car.h" />
+    <ClInclude Include="GameObject.h" />
     <ClInclude Include="GLTexture.h" />
     <ClInclude Include="Model_3DS.h" />
   </ItemGroup>

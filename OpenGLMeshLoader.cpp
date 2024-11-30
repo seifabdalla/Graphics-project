@@ -4,10 +4,10 @@
 #include <glut.h>
 #include <cmath>
 #include <iostream>
-
+#include "Car.h"
 
 #define DEG2RAD(a) (a * 0.0174532925)
-
+#define M_PI 3.14159265358979323846
 
 
 int WIDTH = 1280;
@@ -17,8 +17,9 @@ float PlayerZPos = 0.0f;
 float PlayerYPos = 0.5f;  // Adjust for ground level
 float ObjXPos = 5.0f;
 float ObjZPos = 5.0f;
-
-
+float characterAngle = 0.0f;
+float rotationAngle = 0.0f;
+float moveSpeed = 0.1f;
 GLuint tex;
 char title[] = "3D Model Loader Sample";
 
@@ -184,6 +185,33 @@ void MouseMotion(int x, int y) {
 	glutPostRedisplay();
 }
 
+
+bool isColliding(float playerX, float playerZ, float objX, float objZ) {
+	// Simple collision detection
+	if (playerX >= objX - 3 && playerX <= objX + 7 && playerZ >= objZ - 3 && playerZ <= objZ + 7)
+		return true;
+	else
+		return false;
+}
+
+
+
+void updatePlayerPosition(float& playerX, float& playerZ, float objX, float objZ) {
+	if (!isColliding(playerX, playerZ, objX, objZ)) {
+		// Allow movement if no collision
+		playerX = playerX;
+		playerZ = playerZ;
+	}
+	else {
+		// Prevent movement on collision
+		std::cout << "Collision detected: Player cannot move. Current Position: ("
+			<< playerX << ", " << playerZ << ")" << std::endl;
+	}
+}
+
+
+
+
 void MouseInit(int x, int y) {
 	lastMouseX = x;
 	lastMouseY = y;
@@ -196,40 +224,44 @@ void MouseButton(int button, int state, int x, int y) {
 }
 
 void keyboard(unsigned char key, int x, int y) {
-	float speed = 1.0f; // Adjust movement speed
+	float speed = 1.0f; // Movement speed
+	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
+	float moveSpeed = 0.1f; // Adjust movement step
 
 	if (key == 's') {
-		playerZPos -= speed;
-		// Zoom in
-
+		// Move backward
+		playerZPos -= speed * cos(characterAngle);
+		playerXPos -= speed * sin(characterAngle);
+		updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
 	}
 	else if (key == 'w') {
-		playerZPos += speed;
-
+		// Move forward
+		playerZPos += speed * cos(characterAngle);
+		playerXPos += speed * sin(characterAngle);
+		updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
 	}
 	else if (key == 'd') {
-		playerXPos -= speed;
-		camera.pitch += 1.0f;  // Increase pitch (move camera upwards)
-		if (camera.pitch > 89.0f) camera.pitch = 89.0f;  // Prevent flipping upside down
+		// Rotate right
+		characterAngle -= rotationSpeed;
 	}
 	else if (key == 'a') {
-		playerXPos += speed;
-		camera.pitch -= 1.0f;  // Decrease pitch (move camera downwards)
-		if (camera.pitch < -89.0f) camera.pitch = -89.0f;  // Prevent flipping upside down
+		// Rotate left
+		characterAngle += rotationSpeed;
 	}
-
 	else if (key == 't') {
 		camera.currentView = THIRD;
 	}
-
 	else if (key == 'f') {
 		camera.currentView = FIRST;
 	}
 
+	// Output debug information
 	std::cout << "Player's X Position: " << playerXPos << std::endl;
 	std::cout << "Player's Z Position: " << playerZPos << std::endl;
 	std::cout << "OBJ's X Position: " << ObjXPos << std::endl;
 	std::cout << "OBJ's Z Position: " << ObjZPos << std::endl;
+
+	// Update camera with player's position
 	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
 	camera.updateCameraPosition();
 
@@ -237,27 +269,6 @@ void keyboard(unsigned char key, int x, int y) {
 }
 
 
-bool isColliding(float playerX, float playerZ, float objX, float objZ) {
-	if (playerX >= objX - 3 && playerX <= objX + 7 && playerZ == objZ - 3)
-		return true;
-	else
-		return false;
-}
-
-
-
-
-void updatePlayerPosition(float& playerX, float& playerZ, float objX, float objZ) {
-	if (isColliding(playerX, playerZ, objX, objZ)) {
-		playerZ -= 5.0f; // Move backward
-
-		std::cout << "Collision detected: Player moved back. New Z position: " << playerZ << std::endl;
-	}
-	else {
-		std::cout << "No collision. Player Z position: " << playerZ << std::endl;
-	}
-
-}
 
 
 
@@ -268,6 +279,8 @@ Model_3DS model_tree;
 Model_3DS model_car;
 Model_3DS model_obstacle;
 Model_3DS model_track;
+Car car(model_car, 0, 0, 0);
+
 // Textures
 GLTexture tex_ground;
 GLTexture tex_obs;
@@ -428,18 +441,30 @@ void myDisplay(void)
 
 	glPushMatrix();
 	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
+	glRotatef(characterAngle * 180.0f / M_PI, 0.0f, 1.0f, 0.0f);
+
 	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
-	model_car.Draw(); // Draw the car model
+	
+	car.render();// Draw the car model
 
 	glPopMatrix();
 	
-	model_track.Draw();
+
 	glPushMatrix();
 	glTranslatef(ObjXPos, 0.0, ObjZPos);
 	glRotated(90, 0, 1, 0);
 	glScalef(0.2f, 0.2f, 0.2f);
 	model_obstacle.Draw();
 	glPopMatrix();
+
+
+	glPushMatrix();
+	glTranslatef(-55.0, 0.0, -40.0);
+
+	glScalef(0.02f, 0.02f, 0.02f);
+	model_track.Draw();
+	glPopMatrix();
+
 
 
 	//sky box
@@ -573,7 +598,7 @@ void LoadAssets()
 	// Loading Model files
 	model_house.Load("Models/house/house.3DS");
 	model_tree.Load("Models/tree/Tree1.3ds");
-	model_car.Load("Models/car/car/queen.3ds");
+	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/DriftTrack3.3ds");
 	// Loading texture files

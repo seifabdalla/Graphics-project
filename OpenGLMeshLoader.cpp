@@ -235,7 +235,7 @@ Model_3DS model_house;
 Model_3DS model_tree;
 Model_3DS model_car;
 Model_3DS model_obstacle;
-
+Model_3DS model_track;
 // Textures
 GLTexture tex_ground;
 GLTexture tex_obs;
@@ -379,28 +379,30 @@ void myDisplay(void)
 	setupCamera();
 
 	// Draw Tree Model
-	glPushMatrix();
+	/*glPushMatrix();
 	glTranslatef(10, 0, 0);
 	glScalef(0.7, 0.7, 0.7);
 	model_tree.Draw();
-	glPopMatrix();
+	glPopMatrix();*/
 
 	// Draw house Model
-	glPushMatrix();
+	/*glPushMatrix();
 	glRotatef(90.f, 1, 0, 0);
 	model_house.Draw();
-	glPopMatrix();
+	glPopMatrix();*/
 
 	glPushMatrix();
 	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
 	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
 	model_car.Draw(); // Draw the car model
 	glPopMatrix();
-
+	
+	model_track.Draw();
 	glPushMatrix();
 	glTranslatef(10, 0, -10);
 	glRotated(90, 0, 1, 0);
-	glScalef(0.2f, 0.2f, 0.2f); 
+	glScalef(0.01f, 0.01f, 0.01f); 
+	model_track.Draw();
 	model_obstacle.Draw();
 	glPopMatrix();
 
@@ -538,6 +540,7 @@ void LoadAssets()
 	model_tree.Load("Models/tree/Tree1.3ds");
 	model_car.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
+	model_track.Load("Track/source/DriftTrack3.3ds");
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);

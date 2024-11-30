@@ -3,6 +3,8 @@
 #include "GLTexture.h"
 #include <glut.h>
 #include <cmath>
+#include <iostream>
+
 
 #define DEG2RAD(a) (a * 0.0174532925)
 
@@ -13,6 +15,8 @@ int HEIGHT = 720;
 float PlayerXPos = 0.0f;
 float PlayerZPos = 0.0f;
 float PlayerYPos = 0.5f;  // Adjust for ground level
+float ObjXPos = 5.0f;
+float ObjZPos = 5.0f;
 
 
 GLuint tex;
@@ -115,11 +119,11 @@ public:
 			center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking slightly above the player's position
 			up = Vector3f(0.0f, 1.0f, 0.0f);
 
-			
+
 		}
 		else if (currentView == FIRST) {
 			// Camera positioned at the level of the car and slightly forward
-			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos-4);
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos - 4);
 			eye = playerPosition + Vector3f(0.0f, 0.8f, 4.0); // Slightly above and forward of the car's position
 			center = playerPosition + Vector3f(0.0f, 0.8f, 4.3); // Look further ahead from the car
 			up = Vector3f(0.0f, 0.1f, 0.0f);
@@ -196,12 +200,12 @@ void keyboard(unsigned char key, int x, int y) {
 
 	if (key == 's') {
 		playerZPos -= speed;
-		 // Zoom in
-		
+		// Zoom in
+
 	}
 	else if (key == 'w') {
 		playerZPos += speed;
-		
+
 	}
 	else if (key == 'd') {
 		playerXPos -= speed;
@@ -222,12 +226,40 @@ void keyboard(unsigned char key, int x, int y) {
 		camera.currentView = FIRST;
 	}
 
-
-	camera.playerPosition = Vector3f(PlayerXPos, PlayerYPos, PlayerZPos);
+	std::cout << "Player's X Position: " << playerXPos << std::endl;
+	std::cout << "Player's Z Position: " << playerZPos << std::endl;
+	std::cout << "OBJ's X Position: " << ObjXPos << std::endl;
+	std::cout << "OBJ's Z Position: " << ObjZPos << std::endl;
+	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
 	camera.updateCameraPosition();
 
 	glutPostRedisplay();
 }
+
+
+bool isColliding(float playerX, float playerZ, float objX, float objZ) {
+	if (playerX >= objX - 3 && playerX <= objX + 7 && playerZ == objZ - 3)
+		return true;
+	else
+		return false;
+}
+
+
+
+
+void updatePlayerPosition(float& playerX, float& playerZ, float objX, float objZ) {
+	if (isColliding(playerX, playerZ, objX, objZ)) {
+		playerZ -= 5.0f; // Move backward
+
+		std::cout << "Collision detected: Player moved back. New Z position: " << playerZ << std::endl;
+	}
+	else {
+		std::cout << "No collision. Player Z position: " << playerZ << std::endl;
+	}
+
+}
+
+
 
 
 // Model Variables
@@ -391,16 +423,20 @@ void myDisplay(void)
 	model_house.Draw();
 	glPopMatrix();
 
+
+	updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
+
 	glPushMatrix();
 	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
 	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
 	model_car.Draw(); // Draw the car model
+
 	glPopMatrix();
 
 	glPushMatrix();
-	glTranslatef(10, 0, -10);
+	glTranslatef(ObjXPos, 0.0, ObjZPos);
 	glRotated(90, 0, 1, 0);
-	glScalef(0.2f, 0.2f, 0.2f); 
+	glScalef(0.2f, 0.2f, 0.2f);
 	model_obstacle.Draw();
 	glPopMatrix();
 
@@ -548,6 +584,8 @@ void LoadAssets()
 //=======================================================================
 void main(int argc, char** argv)
 {
+
+
 	glutInit(&argc, argv);
 
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);

@@ -1,4 +1,4 @@
-#include "TextureBuilder.h"
+﻿#include "TextureBuilder.h"
 #include "Model_3DS.h"
 #include "GLTexture.h"
 #include <glut.h>
@@ -8,13 +8,15 @@
 
 #define DEG2RAD(a) (a * 0.0174532925)
 #define M_PI 3.14159265358979323846
+using namespace std;
 
+int track = 1;
 
 int WIDTH = 1280;
 int HEIGHT = 720;
 float PlayerXPos = 0.0f;
 float PlayerZPos = 0.0f;
-float PlayerYPos = 0.5f;  // Adjust for ground level
+float PlayerYPos = 2.0f;  // Adjust for ground level
 float ObjXPos = 5.0f;
 float ObjZPos = 5.0f;
 float characterAngle = 0.0f;
@@ -110,8 +112,14 @@ public:
 		this->pitch = pitch;
 		angleAroundPlayer = angle;
 		playerPosition = Vector3f(0.0f, 0.0f, 0.0f);
+		initialCameraPosition();
 	}
+	void initialCameraPosition() {
+		eye = playerPosition + Vector3f(0.0f, 5.0f, -distanceFromPlayer); // Adjust these offsets as needed
+		center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking slightly above the player's position
+		up = Vector3f(0.0f, 0.1f, 0.0f);
 
+	}
 	void updateCameraPosition() {
 		if (currentView == THIRD) {
 			// Camera positioned slightly above and behind the car
@@ -130,7 +138,7 @@ public:
 			up = Vector3f(0.0f, 0.1f, 0.0f);
 		}
 	}
-
+	 
 	void look() {
 		gluLookAt(
 			eye.x, eye.y, eye.z,
@@ -148,7 +156,7 @@ bool rightMouseDown = false;
 void setupCamera() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60, 640.0 / 480.0, 0.1, 100.0);
+	gluPerspective(60, 640.0 / 480.0, 0.001, 5000);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -223,50 +231,175 @@ void MouseButton(int button, int state, int x, int y) {
 	}
 }
 
+
+
+bool isWithinBoundaries(float x, float z, const std::string& type) {
+	// Define track boundaries
+	
+	if (x < -77)
+		track = 3;
+	else if (z > 116)
+		track = 2;
+	else
+		track = 1;
+	std::cout << "track" << track << endl;
+	std::cout << "z" << z << endl;
+	std::cout << "x" << x << endl;
+	float xMin = -7.9, xMax = 10.8;
+	if (track == 2)
+		return z > 116 && z < 135;
+	else if (track == 3)
+		return x<-77 && x>-99;
+	return z>105||(x > xMin && x < xMax); // Add Z limits if necessary
+}
+
+bool canMoveForward(float x, float z, float angle) {
+	// All corners are within boundaries
+	return true;
+
+}
+
+void moveBackward(float x, float z) {
+	float speed = 1.0f;
+	float newX = x - speed * sin(characterAngle);
+	float newZ =z- speed * cos(characterAngle);
+	if (newX > playerXPos) {
+		if (isWithinBoundaries(newX + 1.2, newZ +1.2, ""))
+		{
+			
+			playerXPos = newX;
+			playerZPos = newZ;
+		}
+	}
+	else if (newX < playerXPos) {
+		if (isWithinBoundaries(newX - 1.2, newZ - 1.2, ""))
+		{
+			
+			playerXPos = newX;
+			playerZPos = newZ;
+		}
+	}
+	else {
+		if(isWithinBoundaries(newX, newZ , ""))
+			std::cout << "here" << endl;
+			playerXPos = newX;
+		    playerZPos = newZ;
+	}
+	std::cout << "old" << playerXPos << endl;
+	std::cout << "new" << newX << endl;
+}  
+
+
+bool canMove(float x, float z, float angle, float speed, bool isForward) {
+	float carLength = 3.0f;
+	float carWidth = 1.7f;
+
+	// Half dimensions
+	float halfLength = carLength / 2.0f;
+	float halfWidth = carWidth / 2.0f;
+
+	// Direction multiplier (forward or backward)
+	float direction = isForward ? 1.0f : -1.0f;
+
+	// Calculate new position
+	float newX = x + direction * speed * sin(angle);
+	float newZ = z + direction * speed * cos(angle);
+
+	// Rotation matrix for corners
+	float sinAngle = sin(angle);
+	float cosAngle = cos(angle);
+
+	// Corner offsets relative to the center (unrotated)
+	float offsets[4][2] = {
+		{-halfLength, -halfWidth},  // Back-right
+		{ halfLength, -halfWidth},  // Front-right
+		{-halfLength,  halfWidth},  // Back-left
+		{ halfLength,  halfWidth}   // Front-left
+	};
+
+	// Calculate rotated corners
+	for (int i = 0; i < 4; i++) {
+		float cornerX = newX + (offsets[i][0] * cosAngle - offsets[i][1] * sinAngle);
+		float cornerZ = newZ + (offsets[i][0] * sinAngle + offsets[i][1] * cosAngle);
+
+		// Check boundary
+		if (!isWithinBoundaries(cornerX, cornerZ, "")) {
+			return false; // One corner is out of bounds
+		}
+	}
+
+	return true; // All corners are within bounds
+}
+void moveFront(float x, float z, float angle, float speed) {
+	if (canMove(x, z, angle, speed, true)) {
+		playerXPos += speed * sin(angle);
+		playerZPos += speed * cos(angle);
+	}
+}
+
+void moveBackward(float x, float z, float angle, float speed) {
+	if (canMove(x, z, angle, speed, false)) {
+		playerXPos -= speed * sin(angle);
+		playerZPos -= speed * cos(angle);
+	}
+}
+void rotateRight(float& angle, float speed, float rotationSpeed) {
+	float newAngle = angle - rotationSpeed;
+	if (newAngle < 0) newAngle += 2 * M_PI;
+
+	// Predict the new position
+	float newX = playerXPos + speed * sin(newAngle);
+	float newZ = playerZPos + speed * cos(newAngle);
+
+	// Check if the new position is within boundaries
+	if (canMove(playerXPos, playerZPos, newAngle, speed, true)) {
+		angle = newAngle;  // Update the angle
+		playerXPos = newX; // Update the position
+		playerZPos = newZ;
+	}
+}
+void rotateLeft(float& angle, float speed, float rotationSpeed) {
+	float newAngle = angle + rotationSpeed;
+	if (newAngle >= 2 * M_PI) newAngle -= 2 * M_PI;
+
+	// Predict the new position
+	float newX = playerXPos + speed * sin(newAngle);
+	float newZ = playerZPos + speed * cos(newAngle);
+
+	// Check if the new position is within boundaries
+	if (canMove(playerXPos, playerZPos, newAngle, speed, true)) {
+		angle = newAngle;  // Update the angle
+		playerXPos = newX; // Update the position
+		playerZPos = newZ;
+	}
+}
 void keyboard(unsigned char key, int x, int y) {
-	float speed = 1.0f; // Movement speed
+	float speed = 1.0f;                  // Movement speed
 	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
-	float moveSpeed = 0.1f; // Adjust movement step
 
 	if (key == 's') {
-		// Move backward
-		playerZPos -= speed * cos(characterAngle);
-		playerXPos -= speed * sin(characterAngle);
-		updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
+		moveBackward(playerXPos, playerZPos, characterAngle, speed);
 	}
 	else if (key == 'w') {
-		// Move forward
-		playerZPos += speed * cos(characterAngle);
-		playerXPos += speed * sin(characterAngle);
-		updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
+		moveFront(playerXPos, playerZPos, characterAngle, speed);
 	}
 	else if (key == 'd') {
-		// Rotate right
-		characterAngle -= rotationSpeed;
+		rotateRight(characterAngle, speed, rotationSpeed);
 	}
 	else if (key == 'a') {
-		// Rotate left
-		characterAngle += rotationSpeed;
-	}
-	else if (key == 't') {
-		camera.currentView = THIRD;
-	}
-	else if (key == 'f') {
-		camera.currentView = FIRST;
+		rotateLeft(characterAngle, speed, rotationSpeed);
 	}
 
-	// Output debug information
-	std::cout << "Player's X Position: " << playerXPos << std::endl;
-	std::cout << "Player's Z Position: " << playerZPos << std::endl;
-	std::cout << "OBJ's X Position: " << ObjXPos << std::endl;
-	std::cout << "OBJ's Z Position: " << ObjZPos << std::endl;
-
-	// Update camera with player's position
+	// Update camera and redraw scene
 	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
 	camera.updateCameraPosition();
-
 	glutPostRedisplay();
+	std::cout << "Player's X Position: " << playerXPos << std::endl;
+	std::cout << "Player's Z Position: " << playerZPos << std::endl;
+	std::cout << "Character Angle: " << characterAngle << std::endl;
 }
+
+
 
 
 
@@ -418,10 +551,10 @@ void myDisplay(void)
 	GLfloat lightPosition[] = { 0.0f, 100.0f, 0.0f, 0.0f };
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightIntensity);
-
+	setupCamera();
 	// Draw Ground
 	RenderGround();
-	setupCamera();
+	
 
 	// Draw Tree Model
 	/*glPushMatrix();
@@ -456,7 +589,12 @@ void myDisplay(void)
 	glScalef(0.2f, 0.2f, 0.2f);
 	model_obstacle.Draw();
 	glPopMatrix();
-
+	glPushMatrix();
+	glTranslatef(11, 0.0, 30.0);
+	//glRotated(90, 0, 1, 0);
+	glScalef(0.02f, 0.2f, 0.2f);
+	model_obstacle.Draw();
+	glPopMatrix();
 
 	glPushMatrix();
 	glTranslatef(-55.0, 0.0, -40.0);
@@ -469,20 +607,57 @@ void myDisplay(void)
 
 	//sky box
 	glPushMatrix();
-	GLUquadricObj* qobj;
-	qobj = gluNewQuadric();
-	glTranslated(50, 0, 0);
-	glRotated(90, 1, 0, 1);
-	glBindTexture(GL_TEXTURE_2D, tex);
-	gluQuadricTexture(qobj, true);
-	gluQuadricNormals(qobj, GL_SMOOTH);
-	gluSphere(qobj, 100, 100, 100);
-	gluDeleteQuadric(qobj);
+	glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
+	glScalef(50, 50, 50);  // Increase the size of the skybox to fully cover the camera view
 
+	// Enable texture mapping
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	// Draw the skybox cube
+	glBegin(GL_QUADS);
+
+	// Front face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, 100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, 100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+
+	// Back face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, -100.0);
+
+	// Top face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+
+	// Bottom face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
+
+	// Right face
+	glTexCoord2f(0.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
+
+	// Left face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
+
+	glEnd();
+
+	glDisable(GL_TEXTURE_2D);
 
 	glPopMatrix();
-
-
 
 	glutSwapBuffers();
 }

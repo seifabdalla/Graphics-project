@@ -29,6 +29,7 @@ public:
     void updatePosition(float _x, float _y, float _z) {
         setPosition(_x, _y, _z);
     }
+   
 };
 
 #endif

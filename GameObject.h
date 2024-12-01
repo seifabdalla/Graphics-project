@@ -27,6 +27,12 @@ public:
         y = _y;
         z = _z;
     }
+    float getX();
+    float getY();
+    float getZ();
+    void setX(float x);
+    void setY(float y);
+    void setZ(float z);
 };
 
 #endif

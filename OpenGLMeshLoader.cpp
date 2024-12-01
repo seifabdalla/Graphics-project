@@ -231,27 +231,86 @@ void MouseButton(int button, int state, int x, int y) {
 	}
 }
 
+struct Boundary {
+	float xMin, xMax;
+	float zMin, zMax;
 
+	bool contains(float x, float z) const {
+		return (x >= xMin && x <= xMax && z >= zMin && z <= zMax);
+	}
+};
+Boundary track1 = { -7.9f, 10.8f, 0.0f, 123.0f }; // Example values for Track 1
+Boundary track2 = { -95.0f, -4.0f, 116.0f, 135.0f }; // Example values for Track 2
+Boundary track3 = { -99.0f, -79.0f, 130.0f, 200.0f }; // Example values for Track 3
+struct CircularUTurn {
+	float centerX, centerZ; // Center of the circle
+	float radius;           // Radius of the arc
+	float angleStart, angleEnd; // Angular range in degrees
+
+	bool contains(float x, float z) const {
+		// Calculate the distance from the center
+		float dx = x - centerX;
+		float dz = z - centerZ;
+		float distance = sqrt(dx * dx + dz * dz);
+
+		// Debug: Print distance check
+		std::cout << "Checking U-Turn: (x=" << x << ", z=" << z << ") -> "
+			<< "Distance to center: " << distance << ", Radius: " << radius << std::endl;
+
+		if (distance <= radius) {
+			// Calculate angle in degrees
+			float angle = atan2(dz, dx) * 180.0f / M_PI;
+			if (angle < 0) angle += 360; // Normalize angle to [0, 360]
+
+			// Debug: Print calculated angle
+			std::cout << "Calculated angle: " << angle << ", Start: " << angleStart
+				<< ", End: " << angleEnd << std::endl;
+
+			// Check if the angle is within the defined arc
+			if (angleStart <= angleEnd) {
+				return angle >= angleStart && angle <= angleEnd;
+			}
+			else {
+				// Handle wrapping (e.g., from 350° to 10°)
+				return angle >= angleStart || angle <= angleEnd;
+			}
+		}
+
+		return false;
+	}
+};
+CircularUTurn uTurn1 = { -10.0f, 103.0f, 10.5f, 0.0f, 90.0f };  // Adjusted angles for accurate arc
+CircularUTurn uTurn2 = { -71.0f, 124.0f, 10.5f, 270.0f, 90.0f };  // Adjusted for the reverse direction
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
-	// Define track boundaries
-	
-	if (x < -77)
-		track = 3;
-	else if (z > 116)
-		track = 2;
-	else
+	static int track = 1; // Default to track 1
+
+	if (track1.contains(x, z)) {
 		track = 1;
-	std::cout << "track" << track << endl;
-	std::cout << "z" << z << endl;
-	std::cout << "x" << x << endl;
-	float xMin = -7.9, xMax = 10.8;
-	if (track == 2)
-		return z > 116 && z < 135;
-	else if (track == 3)
-		return x<-77 && x>-99;
-	return z>105||(x > xMin && x < xMax); // Add Z limits if necessary
+	}
+	else if (track2.contains(x, z)) {
+		track = 2;
+	}
+	else if (track3.contains(x, z)) {
+		track = 3;
+	}
+	else if (uTurn1.contains(x, z)) {
+		std::cout << "Car is in U-turn 1!" << std::endl;
+	}
+	else if (uTurn2.contains(x, z)) {
+		std::cout << "Car is in U-turn 2!" << std::endl;
+	}
+	else {
+		std::cout << "False Track: " << track << ", X: " << x << ", Z: " << z << std::endl;
+		return false; // Out of bounds
+	}
+
+	std::cout << "Track: " << track << ", X: " << x << ", Z: " << z << std::endl;
+
+	// Additional logic for U-turns (if needed)
+	return true;
 }
+
 
 bool canMoveForward(float x, float z, float angle) {
 	// All corners are within boundaries
@@ -335,6 +394,11 @@ void moveFront(float x, float z, float angle, float speed) {
 		playerXPos += speed * sin(angle);
 		playerZPos += speed * cos(angle);
 	}
+	else {
+
+		playerXPos += -1*sin(angle);
+		playerZPos += -1*cos(angle);
+	}
 }
 
 void moveBackward(float x, float z, float angle, float speed) {
@@ -342,7 +406,14 @@ void moveBackward(float x, float z, float angle, float speed) {
 		playerXPos -= speed * sin(angle);
 		playerZPos -= speed * cos(angle);
 	}
+	else {
+
+		playerXPos -= -1 * sin(angle);
+		playerZPos -= -1 * cos(angle);
+	}
 }
+	
+
 void rotateRight(float& angle, float speed, float rotationSpeed) {
 	float newAngle = angle - rotationSpeed;
 	if (newAngle < 0) newAngle += 2 * M_PI;
@@ -356,6 +427,10 @@ void rotateRight(float& angle, float speed, float rotationSpeed) {
 		angle = newAngle;  // Update the angle
 		playerXPos = newX; // Update the position
 		playerZPos = newZ;
+	}
+	else {
+		playerXPos += -1 * sin(angle);
+		playerZPos += -1 * cos(angle);
 	}
 }
 void rotateLeft(float& angle, float speed, float rotationSpeed) {
@@ -371,6 +446,10 @@ void rotateLeft(float& angle, float speed, float rotationSpeed) {
 		angle = newAngle;  // Update the angle
 		playerXPos = newX; // Update the position
 		playerZPos = newZ;
+	}
+	else {
+		playerXPos += -1 * sin(angle);
+		playerZPos += -1 * cos(angle);
 	}
 }
 void keyboard(unsigned char key, int x, int y) {
@@ -412,6 +491,8 @@ Model_3DS model_tree;
 Model_3DS model_car;
 Model_3DS model_obstacle;
 Model_3DS model_track;
+Model_3DS model_cage;
+Model_3DS model_matar;
 Car car(model_car, 0, 0, 0);
 
 // Textures
@@ -605,6 +686,10 @@ void myDisplay(void)
 
 
 
+
+
+
+
 	//sky box
 	glPushMatrix();
 	glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
@@ -776,6 +861,8 @@ void LoadAssets()
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/DriftTrack3.3ds");
+	model_matar.Load("Models/Matar/mater.3DS");
+	//model_cage.Load("Track/source/cagee.3ds");
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);

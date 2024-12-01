@@ -18,7 +18,12 @@ float PlayerXPos = 0.0f;
 float PlayerZPos = 0.0f;
 float PlayerYPos = 2.0f;  // Adjust for ground level
 float ObjXPos = 5.0f;
-float ObjZPos = 5.0f;
+float ObjZPos = 45.0f;
+float Obj2XPos = -55.0f;
+float Obj2ZPos = 120.0f;
+float Obj3XPos = -95.0f;
+float Obj3ZPos = 145.0f;
+
 float characterAngle = 0.0f;
 float rotationAngle = 0.0f;
 float moveSpeed = 0.1f;
@@ -123,18 +128,17 @@ public:
 	void updateCameraPosition() {
 		if (currentView == THIRD) {
 			// Camera positioned slightly above and behind the car
-			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
+			playerPosition = Vector3f(playerXPos, 1.75, playerZPos);
 			eye = playerPosition + Vector3f(0.0f, 5.0f, -distanceFromPlayer); // Adjust these offsets as needed
 			center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking slightly above the player's position
-			up = Vector3f(0.0f, 1.0f, 0.0f);
-
+			up = Vector3f(0.0f, 0.1f, 0.0f);
 
 		}
 		else if (currentView == FIRST) {
 			// Camera positioned at the level of the car and slightly forward
-			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos - 4);
-			eye = playerPosition + Vector3f(0.0f, 0.8f, 4.0); // Slightly above and forward of the car's position
-			center = playerPosition + Vector3f(0.0f, 0.8f, 4.3); // Look further ahead from the car
+			playerPosition = Vector3f(playerXPos, 1.75, playerZPos - 3.5);
+			eye = playerPosition + Vector3f(0.0f, 1.6, 4.7); // Slightly above and forward of the car's position
+			center = playerPosition + Vector3f(0.0f, 1.6, 5); // Look further ahead from the car
 			up = Vector3f(0.0f, 0.1f, 0.0f);
 		}
 	}
@@ -156,7 +160,7 @@ bool rightMouseDown = false;
 void setupCamera() {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60, 640.0 / 480.0, 0.001, 5000);
+	gluPerspective(60, 640.0 / 480.0, 0.001, 10000);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -196,7 +200,7 @@ void MouseMotion(int x, int y) {
 
 bool isColliding(float playerX, float playerZ, float objX, float objZ) {
 	// Simple collision detection
-	if (playerX >= objX - 3 && playerX <= objX + 7 && playerZ >= objZ - 3 && playerZ <= objZ + 7)
+	if (playerX >= objX - 3 && playerX <= objX + 3 && playerZ >= objZ - 3 && playerZ <= objZ + 3)
 		return true;
 	else
 		return false;
@@ -204,13 +208,13 @@ bool isColliding(float playerX, float playerZ, float objX, float objZ) {
 
 
 
-void updatePlayerPosition(float& playerX, float& playerZ, float objX, float objZ) {
+bool updatePlayerPosition(float playerX, float playerZ, float objX, float objZ) {
 	if (!isColliding(playerX, playerZ, objX, objZ)) {
 		// Allow movement if no collision
-		playerX = playerX;
-		playerZ = playerZ;
+		return true;
 	}
 	else {
+		return false;
 		// Prevent movement on collision
 		std::cout << "Collision detected: Player cannot move. Current Position: ("
 			<< playerX << ", " << playerZ << ")" << std::endl;
@@ -239,8 +243,12 @@ struct Boundary {
 		return (x >= xMin && x <= xMax && z >= zMin && z <= zMax);
 	}
 };
-Boundary track1 = { -7.9f, 10.8f, 0.0f, 123.0f }; // Example values for Track 1
-Boundary track2 = { -95.0f, -4.0f, 116.0f, 135.0f }; // Example values for Track 2
+Boundary track1 = { -7.9f, 10.8f, 0.0f, 123.0f };
+// Example values for Track 1
+Boundary Uturn12 = { -17.0f ,- 7.5f,98.0f, 123.0f };
+Boundary track2 = { -95.0f, -4.0f, 116.0f, 135.0f };
+// Example values for Track 2
+Boundary Uturn23 = {-92,-74,};
 Boundary track3 = { -99.0f, -79.0f, 130.0f, 200.0f }; // Example values for Track 3
 struct CircularUTurn {
 	float centerX, centerZ; // Center of the circle
@@ -294,7 +302,7 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 	else if (track3.contains(x, z)) {
 		track = 3;
 	}
-	else if (uTurn1.contains(x, z)) {
+	else if (Uturn12.contains(x, z)) {
 		std::cout << "Car is in U-turn 1!" << std::endl;
 	}
 	else if (uTurn2.contains(x, z)) {
@@ -382,10 +390,14 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 		float cornerZ = newZ + (offsets[i][0] * sinAngle + offsets[i][1] * cosAngle);
 
 		// Check boundary
-		if (!isWithinBoundaries(cornerX, cornerZ, "")) {
+		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)) {
 			return false; // One corner is out of bounds
 		}
+
+
+
 	}
+	   
 
 	return true; // All corners are within bounds
 }
@@ -442,7 +454,7 @@ void rotateLeft(float& angle, float speed, float rotationSpeed) {
 	float newZ = playerZPos + speed * cos(newAngle);
 
 	// Check if the new position is within boundaries
-	if (canMove(playerXPos, playerZPos, newAngle, speed, true)) {
+	if (canMove(playerXPos, playerZPos, newAngle, speed, true) ){
 		angle = newAngle;  // Update the angle
 		playerXPos = newX; // Update the position
 		playerZPos = newZ;
@@ -468,6 +480,10 @@ void keyboard(unsigned char key, int x, int y) {
 	else if (key == 'a') {
 		rotateLeft(characterAngle, speed, rotationSpeed);
 	}
+	else if (key == 't')
+		camera.currentView = THIRD;
+	else if (key == 'f')
+		camera.currentView = FIRST;
 
 	// Update camera and redraw scene
 	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
@@ -671,11 +687,20 @@ void myDisplay(void)
 	model_obstacle.Draw();
 	glPopMatrix();
 	glPushMatrix();
-	glTranslatef(11, 0.0, 30.0);
+	glTranslatef(Obj2XPos, 1.5, Obj2ZPos);
 	//glRotated(90, 0, 1, 0);
-	glScalef(0.02f, 0.2f, 0.2f);
+	glScalef(0.2f, 0.2f, 0.2f);
 	model_obstacle.Draw();
 	glPopMatrix();
+	glPushMatrix();
+	glTranslatef(Obj3XPos, 1.5, Obj3ZPos);
+	glRotated(90, 0, 1, 0);
+	glScalef(0.2f, 0.2f, 0.2f);
+	model_obstacle.Draw();
+	glPopMatrix();
+	
+
+	 
 
 	glPushMatrix();
 	glTranslatef(-55.0, 0.0, -40.0);
@@ -692,7 +717,7 @@ void myDisplay(void)
 
 	//sky box
 	glPushMatrix();
-	glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
+	//glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
 	glScalef(50, 50, 50);  // Increase the size of the skybox to fully cover the camera view
 
 	// Enable texture mapping
@@ -861,7 +886,7 @@ void LoadAssets()
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/DriftTrack3.3ds");
-	model_matar.Load("Models/Matar/mater.3DS");
+	//model_matar.Load("Models/Matar/mater.3DS");
 	//model_cage.Load("Track/source/cagee.3ds");
 	// Loading texture files
 	tex_ground.Load("Textures/ground.bmp");

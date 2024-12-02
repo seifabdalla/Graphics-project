@@ -61,6 +61,7 @@ Vector Up(0, 1, 0);
 enum CameraView {
 	THIRD,
 	FIRST,
+	TOP
 };
 
 
@@ -110,6 +111,7 @@ public:
 	float pitch;
 	float angleAroundPlayer;
 	Vector3f playerPosition;
+
 	CameraView currentView;
 
 	Camera(float distance = 10.0f, float pitch = 10.0f, float angle = 0.0f) {
@@ -125,24 +127,40 @@ public:
 		up = Vector3f(0.0f, 0.1f, 0.0f);
 
 	}
-	void updateCameraPosition() {
+	void updateCameraPosition(float playerAngle) {
 		if (currentView == THIRD) {
-			// Camera positioned slightly above and behind the car
-			playerPosition = Vector3f(playerXPos, 1.75, playerZPos);
-			eye = playerPosition + Vector3f(0.0f, 5.0f, -distanceFromPlayer); // Adjust these offsets as needed
-			center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking slightly above the player's position
-			up = Vector3f(0.0f, 0.1f, 0.0f);
+			// Camera positioned slightly above and behind the player
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
 
+			// Compute the camera's relative position based on the player's angle
+			float offsetX = distanceFromPlayer * sin(playerAngle);
+			float offsetZ = distanceFromPlayer * cos(playerAngle);
+
+			eye = playerPosition + Vector3f(-offsetX, 5.0f, -offsetZ); // Slightly above and behind
+			center = playerPosition + Vector3f(0.0f, 2.0f, 0.0f); // Looking directly above the player's position
+			up = Vector3f(0.0f, 1.0f, 0.0f); // Keep the up direction consistent
 		}
 		else if (currentView == FIRST) {
-			// Camera positioned at the level of the car and slightly forward
-			playerPosition = Vector3f(playerXPos, 1.75, playerZPos - 3.5);
-			eye = playerPosition + Vector3f(0.0f, 1.6, 4.7); // Slightly above and forward of the car's position
-			center = playerPosition + Vector3f(0.0f, 1.6, 5); // Look further ahead from the car
-			up = Vector3f(0.0f, 0.1f, 0.0f);
+			// Camera positioned slightly above and ahead of the player
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
+
+			// Compute the forward offset based on the player's angle
+			float offsetX = 4.7f * sin(playerAngle);
+			float offsetZ = 4.7f * cos(playerAngle);
+
+			eye = playerPosition + Vector3f(0.0f, 1.6f, 0.0f); // Slightly above the player's position
+			center = playerPosition + Vector3f(offsetX, 1.6f, offsetZ); // Looking forward in the player's direction
+			up = Vector3f(0.0f, 1.0f, 0.0f); // Keep the up direction consistent
+		}
+		else if (currentView == TOP) {
+			// Camera positioned high above the player, looking straight down
+			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
+			eye = playerPosition + Vector3f(0.0f, 100.0f, 0.0f); // High above the player
+			center = playerPosition; // Looking directly at the player
+			up = Vector3f(0.0f, 0.0f, 1.0f); // Up vector flipped for a downward view
 		}
 	}
-	 
+
 	void look() {
 		gluLookAt(
 			eye.x, eye.y, eye.z,
@@ -189,7 +207,7 @@ void MouseMotion(int x, int y) {
 	}
 
 	// Update camera position based on new pitch and angleAroundPlayer
-	camera.updateCameraPosition();
+	camera.updateCameraPosition(characterAngle);
 
 	lastMouseX = x;
 	lastMouseY = y;
@@ -235,126 +253,74 @@ void MouseButton(int button, int state, int x, int y) {
 	}
 }
 
-struct Boundary {
-	float xMin, xMax;
-	float zMin, zMax;
+class Boundary {
+public:
+	float minX, maxX, minZ, maxZ;
 
+	// Default Constructor
+	Boundary() : minX(0.0f), maxX(0.0f), minZ(0.0f), maxZ(0.0f) {}
+
+	// Parameterized Constructor
+	Boundary(float minX, float maxX, float minZ, float maxZ)
+		: minX(minX), maxX(maxX), minZ(minZ), maxZ(maxZ) {}
+
+	// Method to check if a point is within the boundary
 	bool contains(float x, float z) const {
-		return (x >= xMin && x <= xMax && z >= zMin && z <= zMax);
+		return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
 	}
 };
-Boundary track1 = { -7.9f, 10.8f, 0.0f, 123.0f };
-// Example values for Track 1
-Boundary Uturn12 = { -17.0f ,- 7.5f,98.0f, 123.0f };
-Boundary track2 = { -95.0f, -4.0f, 116.0f, 135.0f };
-// Example values for Track 2
-Boundary Uturn23 = {-92,-74,};
-Boundary track3 = { -99.0f, -79.0f, 130.0f, 200.0f }; // Example values for Track 3
-struct CircularUTurn {
-	float centerX, centerZ; // Center of the circle
-	float radius;           // Radius of the arc
-	float angleStart, angleEnd; // Angular range in degrees
 
-	bool contains(float x, float z) const {
-		// Calculate the distance from the center
-		float dx = x - centerX;
-		float dz = z - centerZ;
-		float distance = sqrt(dx * dx + dz * dz);
-
-		// Debug: Print distance check
-		std::cout << "Checking U-Turn: (x=" << x << ", z=" << z << ") -> "
-			<< "Distance to center: " << distance << ", Radius: " << radius << std::endl;
-
-		if (distance <= radius) {
-			// Calculate angle in degrees
-			float angle = atan2(dz, dx) * 180.0f / M_PI;
-			if (angle < 0) angle += 360; // Normalize angle to [0, 360]
-
-			// Debug: Print calculated angle
-			std::cout << "Calculated angle: " << angle << ", Start: " << angleStart
-				<< ", End: " << angleEnd << std::endl;
-
-			// Check if the angle is within the defined arc
-			if (angleStart <= angleEnd) {
-				return angle >= angleStart && angle <= angleEnd;
-			}
-			else {
-				// Handle wrapping (e.g., from 350° to 10°)
-				return angle >= angleStart || angle <= angleEnd;
-			}
-		}
-
-		return false;
-	}
-};
-CircularUTurn uTurn1 = { -10.0f, 103.0f, 10.5f, 0.0f, 90.0f };  // Adjusted angles for accurate arc
-CircularUTurn uTurn2 = { -71.0f, 124.0f, 10.5f, 270.0f, 90.0f };  // Adjusted for the reverse direction
+// Individual boundary instances
+Boundary track1(-7.9f, 10.8f, 0.0f, 123.0f);    // Track 1
+Boundary uTurn12(-17.0f, -7.5f, 98.0f, 123.0f);  // U-turn 12
+Boundary track2(-95.0f, -4.0f, 116.0f, 135.0f); // Track 2
+Boundary uTurn23(-92.0f, -74.0f, 0.0f, 0.0f);    // U-turn 23 (placeholders)
+Boundary track3(-99.0f, -79.0f, 130.0f, 200.0f); // Track 3
+Boundary uTurn34(-99.0f, -64.0f, 200.0f, 220.0f); // U-turn 34
+Boundary track4(-64.0f, 153.0f, 207.5f, 235.0f);  // Track 4
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
-	static int track = 1; // Default to track 1
+	static int currentTrack = 1; // Default to track 1
 
+	// Check for each boundary individually
 	if (track1.contains(x, z)) {
-		track = 1;
+		currentTrack = 1;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (uTurn12.contains(x, z)) {
+		std::cout << "Car is in U-turn 1!" << std::endl;
+		return true;
 	}
 	else if (track2.contains(x, z)) {
-		track = 2;
+		currentTrack = 2;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (uTurn23.contains(x, z)) {
+		std::cout << "Car is in U-turn 2!" << std::endl;
+		return true;
 	}
 	else if (track3.contains(x, z)) {
-		track = 3;
+		currentTrack = 3;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
 	}
-	else if (Uturn12.contains(x, z)) {
-		std::cout << "Car is in U-turn 1!" << std::endl;
+	else if (uTurn34.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
 	}
-	else if (uTurn2.contains(x, z)) {
-		std::cout << "Car is in U-turn 2!" << std::endl;
-	}
-	else {
-		std::cout << "False Track: " << track << ", X: " << x << ", Z: " << z << std::endl;
-		return false; // Out of bounds
+	else if (track4.contains(x, z)) {
+		currentTrack = 4;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
 	}
 
-	std::cout << "Track: " << track << ", X: " << x << ", Z: " << z << std::endl;
-
-	// Additional logic for U-turns (if needed)
-	return true;
+	// If no boundary matches, the position is out of bounds
+	std::cout << "False Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+	return false;
 }
 
-
-bool canMoveForward(float x, float z, float angle) {
-	// All corners are within boundaries
-	return true;
-
-}
-
-void moveBackward(float x, float z) {
-	float speed = 1.0f;
-	float newX = x - speed * sin(characterAngle);
-	float newZ =z- speed * cos(characterAngle);
-	if (newX > playerXPos) {
-		if (isWithinBoundaries(newX + 1.2, newZ +1.2, ""))
-		{
-			
-			playerXPos = newX;
-			playerZPos = newZ;
-		}
-	}
-	else if (newX < playerXPos) {
-		if (isWithinBoundaries(newX - 1.2, newZ - 1.2, ""))
-		{
-			
-			playerXPos = newX;
-			playerZPos = newZ;
-		}
-	}
-	else {
-		if(isWithinBoundaries(newX, newZ , ""))
-			std::cout << "here" << endl;
-			playerXPos = newX;
-		    playerZPos = newZ;
-	}
-	std::cout << "old" << playerXPos << endl;
-	std::cout << "new" << newX << endl;
-}  
 
 
 bool canMove(float x, float z, float angle, float speed, bool isForward) {
@@ -484,10 +450,12 @@ void keyboard(unsigned char key, int x, int y) {
 		camera.currentView = THIRD;
 	else if (key == 'f')
 		camera.currentView = FIRST;
+	else if (key == 'y')
+		camera.currentView = TOP;
 
 	// Update camera and redraw scene
 	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
-	camera.updateCameraPosition();
+	camera.updateCameraPosition(characterAngle);
 	glutPostRedisplay();
 	std::cout << "Player's X Position: " << playerXPos << std::endl;
 	std::cout << "Player's Z Position: " << playerZPos << std::endl;
@@ -502,8 +470,6 @@ void keyboard(unsigned char key, int x, int y) {
 
 
 // Model Variables
-Model_3DS model_house;
-Model_3DS model_tree;
 Model_3DS model_car;
 Model_3DS model_obstacle;
 Model_3DS model_track;
@@ -512,7 +478,6 @@ Model_3DS model_matar;
 Car car(model_car, 0, 0, 0);
 
 // Textures
-GLTexture tex_ground;
 GLTexture tex_obs;
 
 //=======================================================================
@@ -606,34 +571,6 @@ void myInit(void)
 //=======================================================================
 // Render Ground Function
 //=======================================================================
-void RenderGround()
-{
-	glDisable(GL_LIGHTING);	// Disable lighting 
-
-	glColor3f(0.6, 0.6, 0.6);	// Dim the ground texture a bit
-
-	glEnable(GL_TEXTURE_2D);	// Enable 2D texturing
-
-	glBindTexture(GL_TEXTURE_2D, tex_ground.texture[0]);	// Bind the ground texture
-
-	glPushMatrix();
-	glBegin(GL_QUADS);
-	glNormal3f(0, 1, 0);	// Set quad normal direction.
-	glTexCoord2f(0, 0);		// Set tex coordinates ( Using (0,0) -> (5,5) with texture wrapping set to GL_REPEAT to simulate the ground repeated grass texture).
-	glVertex3f(-20, 0, -20);
-	glTexCoord2f(5, 0);
-	glVertex3f(20, 0, -20);
-	glTexCoord2f(5, 5);
-	glVertex3f(20, 0, 20);
-	glTexCoord2f(0, 5);
-	glVertex3f(-20, 0, 20);
-	glEnd();
-	glPopMatrix();
-
-	glEnable(GL_LIGHTING);	// Enable lighting again for other entites coming throung the pipeline.
-
-	glColor3f(1, 1, 1);	// Set material back to white instead of grey used for the ground texture.
-}
 
 //=======================================================================
 // Display Function
@@ -650,7 +587,6 @@ void myDisplay(void)
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightIntensity);
 	setupCamera();
 	// Draw Ground
-	RenderGround();
 	
 
 	// Draw Tree Model
@@ -683,19 +619,19 @@ void myDisplay(void)
 	glPushMatrix();
 	glTranslatef(ObjXPos, 0.0, ObjZPos);
 	glRotated(90, 0, 1, 0);
-	glScalef(0.2f, 0.2f, 0.2f);
+	glScalef(0.14f, 0.14f, 0.14f);
 	model_obstacle.Draw();
 	glPopMatrix();
 	glPushMatrix();
 	glTranslatef(Obj2XPos, 1.5, Obj2ZPos);
 	//glRotated(90, 0, 1, 0);
-	glScalef(0.2f, 0.2f, 0.2f);
+	glScalef(0.14f, 0.14f, 0.14f);
 	model_obstacle.Draw();
 	glPopMatrix();
 	glPushMatrix();
 	glTranslatef(Obj3XPos, 1.5, Obj3ZPos);
 	glRotated(90, 0, 1, 0);
-	glScalef(0.2f, 0.2f, 0.2f);
+	glScalef(0.14f, 0.14f, 0.14f);
 	model_obstacle.Draw();
 	glPopMatrix();
 	
@@ -710,6 +646,7 @@ void myDisplay(void)
 	glPopMatrix();
 
 
+	
 
 
 
@@ -881,15 +818,13 @@ void LoadAssets()
 	}
 
 	// Loading Model files
-	model_house.Load("Models/house/house.3DS");
-	model_tree.Load("Models/tree/Tree1.3ds");
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
-	model_track.Load("Track/source/DriftTrack3.3ds");
+	model_track.Load("Track/source/weloTrack.3ds");
 	//model_matar.Load("Models/Matar/mater.3DS");
 	//model_cage.Load("Track/source/cagee.3ds");
+	// 
 	// Loading texture files
-	tex_ground.Load("Textures/ground.bmp");
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
 }
 

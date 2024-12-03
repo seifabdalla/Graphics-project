@@ -277,12 +277,71 @@ Boundary track2(-95.0f, -4.0f, 116.0f, 135.0f); // Track 2
 Boundary uTurn23(-92.0f, -74.0f, 0.0f, 0.0f);    // U-turn 23 (placeholders)
 Boundary track3(-99.0f, -79.0f, 130.0f, 200.0f); // Track 3
 Boundary uTurn34(-99.0f, -64.0f, 200.0f, 220.0f); // U-turn 34
-Boundary track4(-64.0f, 153.0f, 207.5f, 235.0f);  // Track 4
+Boundary track4(-64.0f, 153.0f, 207.5f, 235.0f);// Track 4
+
+
+
+
+
+
+
+Boundary trackj1(150.0,183.0,203.0f,223.0f);// Track 4
+
+Boundary roadj1(165.0, 187.95, 82.9, 204.0);
+
+Boundary trackj2(160.0f, 182.83f, 71.9521f, 83.0f);// Track 4
+
+Boundary roadj2(90.0f,163.0f,63.669f,85.7f);// Track 4
+
+
+///////////////////////////////////////////////////////////////
+
+
+
+
+Boundary trackj3(74.0f, 97.0f,60.0f, 82.0f);// Track 4
+
+Boundary roadj3(69.6f,90.0f,30.0f,70.0f);// Track 4
+
+
+
+
+
+
+//////////////////////////////////
+
+
+
+
+
+Boundary trackj4(70.0f,86.0f,15.0f,34.0f);// Track 4
+
+
+Boundary roadj4(86.0f, 172.0f, 7.0f, 29.0f);// Track 4
+/////////////////////////////////////////////////////////////
+
+
+
+Boundary trackj5(164.294f,179.294f, -68.6447f, -46.6447f);// Track 4
+
+Boundary roadj5(162.7f,180.7f,-46.6f,9.5f);// Track 4
+
+Boundary trackj6(163.818f,178.18f, -68.6447f, -46.6447f);// Track 4
+
+
+/////////////////////////////////////////
+Boundary roadj6(175.0f,230.f,-80.0f,-59.32f);// Track 4
+
+Boundary trackj7(214.0f,239.0f,-83.2103,-63.2103);// Track 4
+
+Boundary roadj7(222.0f,244.5f,-216.0f,-83.0f);// Track 4
+
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
 	static int currentTrack = 1; // Default to track 1
 
 	// Check for each boundary individually
+	
 	if (track1.contains(x, z)) {
 		currentTrack = 1;
 		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
@@ -315,7 +374,69 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
-
+	else if (trackj1.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj1.contains(x, z)) {
+		currentTrack = 5;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj2.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj2.contains(x, z)) {
+		currentTrack = 6;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj3.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj3.contains(x, z)) {
+		currentTrack = 7;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj4.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj4.contains(x, z)) {
+		currentTrack = 8;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj5.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj5.contains(x, z)) {
+		currentTrack = 9;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj6.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj6.contains(x, z)) {
+		currentTrack = 10;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
+	else if (trackj7.contains(x, z)) {
+		std::cout << "Car is in U-turn 3!" << std::endl;
+		return true;
+	}
+	else if (roadj7.contains(x, z)) {
+		currentTrack = 11;
+		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
+		return true;
+	}
 	// If no boundary matches, the position is out of bounds
 	std::cout << "False Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 	return false;
@@ -324,6 +445,7 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 
 
 bool canMove(float x, float z, float angle, float speed, bool isForward) {
+
 	float carLength = 3.0f;
 	float carWidth = 1.7f;
 

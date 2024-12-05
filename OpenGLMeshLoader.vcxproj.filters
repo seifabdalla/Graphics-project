@@ -2,6 +2,8 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <None Include="ReadMe.txt" />
+    <None Include="car.frag" />
+    <None Include="car.vert" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

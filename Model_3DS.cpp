@@ -249,7 +249,7 @@ void Model_3DS::Load(char *name)
 			Objects[k].numTexCoords = Objects[k].numVerts;
 
 			// Allocate an array to hold the texture coordinates
-			Objects[k].TexCoords = new GLfloat[Objects[k].numTexCoords * 2];
+ 			Objects[k].TexCoords = new GLfloat[Objects[k].numTexCoords * 2];
 
 			// Make some texture coords
 			for (int m = 0; m < Objects[k].numTexCoords; m++)

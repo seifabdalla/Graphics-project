@@ -80,6 +80,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="car.frag" />
+    <None Include="car.vert" />
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>

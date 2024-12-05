@@ -10,7 +10,13 @@
 #define M_PI 3.14159265358979323846
 using namespace std;
 
+bool track1Win = false;
+bool cutScene1 = false;
+
+
 int track = 1;
+
+bool bolt1=true;bool bolt2 = true;bool bolt3 = true;bool bolt4 = true;bool bolt5 = true;
 
 int WIDTH = 1280;
 int HEIGHT = 720;
@@ -24,9 +30,89 @@ float Obj2ZPos = 120.0f;
 float Obj3XPos = -95.0f;
 float Obj3ZPos = 145.0f;
 
+float Obj4XPos = 20;
+float Obj4ZPos = 208.5;
+
+float Obj5XPos = 120;
+float Obj5ZPos = 223.5;
+
+float Obj6XPos = 160;
+float Obj6ZPos = 85;
+
+float Obj7XPos = 180;
+float Obj7ZPos = 195;
+
+float Obj8XPos = 100;
+float Obj8ZPos = 15;
+
+float Obj9XPos = -85;
+float Obj9ZPos = 185;
+
+// Global variables for cutscene animation
+float cageYPos = 0.0f;          // Cage's upward movement position
+float materRotationAngle = 0.0f; // Mater's rotation angle
+float materJumpHeight = 0.0f;   // Mater's vertical jump height
+int jumpStage = 0;              // Jump stage (0: up, 1: down)
+bool animationComplete = false; // Flag to track if animation has completed
+float cutsceneTimer = 0.0f;     // Timer to limit cutscene duration
+
+// Timer interval (milliseconds)
+const int TIMER_INTERVAL = 16; // ~60 FPS
+
+// Function to update animation states for the cutscene
+void updateCutscene() {
+	if (cutScene1 && !animationComplete) {
+		// Animate the cage moving upwards
+		if (cageYPos < 8.0f) {
+			cageYPos += 0.05f; // Incrementally move the cage up
+		}
+
+		if (cageYPos >= 8) {// Animate Mater rotating around a point and jumping
+			materRotationAngle += 2.0f; // Increment rotation angle
+			if (materRotationAngle > 360.0f) {
+				materRotationAngle -= 360.0f; // Keep angle within bounds
+			}
+
+			// Jump logic: Increment or decrement jump height
+			if (jumpStage == 0) {
+				materJumpHeight += 0.05f; // Move up
+				if (materJumpHeight >= 1.5f) {
+					jumpStage = 1; // Switch to falling down
+				}
+			}
+			else if (jumpStage == 1) {
+				materJumpHeight -= 0.05f; // Move down
+				if (materJumpHeight <= 0.0f) {
+					jumpStage = 0; // Switch back to jumping up
+				}
+			}
+		}
+		// Update the cutscene timer
+		cutsceneTimer += TIMER_INTERVAL / 1000.0f; // Convert milliseconds to seconds
+		if (cutsceneTimer >= 10.0f) { // End cutscene after 10 seconds
+			animationComplete = true;
+		}
+	}
+	glutPostRedisplay(); // Redraw the scene
+}
+
+float boltRotationAngle = 0.0f; // Rotation angle for bolts
+const float rotationSpeed = 0.7f; // Adjust rotation speed
+
+void updateBoltRotation() {
+	boltRotationAngle += rotationSpeed;
+	if (boltRotationAngle >= 360.0f) {
+		boltRotationAngle -= 360.0f; // Reset angle to prevent overflow
+	}
+}
+
 float characterAngle = 0.0f;
 float rotationAngle = 0.0f;
-float moveSpeed = 0.1f;
+
+float moveSpeed = 1.5f;         // Player movement speed
+bool speedBoostActive = false; // Whether the speed boost is active
+float speedBoostTimer = 0.0f;  // Timer for speed boost countdown
+
 GLuint tex;
 char title[] = "3D Model Loader Sample";
 
@@ -105,6 +191,18 @@ float playerXPos = 0.0f;
 float playerZPos = 0.0f;
 
 
+void updateSpeedBoostTimer(float deltaTime) {
+	if (speedBoostActive) {
+		speedBoostTimer -= deltaTime; // Reduce the timer
+		if (speedBoostTimer <= 0.0f) {
+			speedBoostActive = false; // Deactivate boost
+			moveSpeed -= 1;       // Reset speed
+			speedBoostTimer = 0.0f;   // Reset timer
+		}
+	}
+}
+
+
 class Camera {
 public:
 	float distanceFromPlayer;
@@ -155,7 +253,7 @@ public:
 		else if (currentView == TOP) {
 			// Camera positioned high above the player, looking straight down
 			playerPosition = Vector3f(playerXPos, 1.75f, playerZPos);
-			eye = playerPosition + Vector3f(0.0f, 100.0f, 0.0f); // High above the player
+			eye = playerPosition + Vector3f(0.0f, 250.0f, 0.0f); // High above the player
 			center = playerPosition; // Looking directly at the player
 			up = Vector3f(0.0f, 0.0f, 1.0f); // Up vector flipped for a downward view
 		}
@@ -218,26 +316,59 @@ void MouseMotion(int x, int y) {
 
 bool isColliding(float playerX, float playerZ, float objX, float objZ) {
 	// Simple collision detection
-	if (playerX >= objX - 3 && playerX <= objX + 3 && playerZ >= objZ - 3 && playerZ <= objZ + 3)
+	if (playerX >= objX - 2.4 && playerX <= objX + 2.4 && playerZ >= objZ - 2.4 && playerZ <= objZ + 2.4)
 		return true;
 	else
 		return false;
 }
+bool checkCollision(float playerX, float playerZ, float boltX, float boltZ, float threshold) {
+	// Calculate distance between player and bolt
+	float deltaX = playerX - boltX;
+	float deltaZ = playerZ - boltZ;
 
+	// Check if within collision threshold
+	return (deltaX * deltaX + deltaZ * deltaZ) <= (threshold * threshold);
+}
 
+void activateSpeedBoost() {
+	moveSpeed +=1 ;          // Increase speed
+	speedBoostActive = true;     // Activate boost
+	speedBoostTimer = 2.5f;      // Set 2-second timer
+}
 
-bool updatePlayerPosition(float playerX, float playerZ, float objX, float objZ) {
-	if (!isColliding(playerX, playerZ, objX, objZ)) {
-		// Allow movement if no collision
-		return true;
+void checkBoltCollisions(float playerX, float playerZ) {
+	float collisionThreshold = 5.0f; // Adjust based on the size of the player and bolts
+
+	// Check each bolt individually
+	if (bolt1 && checkCollision(playerX, playerZ, 0, 78, collisionThreshold)) {
+		bolt1 = false;
+		activateSpeedBoost(); // Activate speed boost
+		std::cout << "Collision with Bolt 1!" << std::endl;
 	}
-	else {
-		return false;
-		// Prevent movement on collision
-		std::cout << "Collision detected: Player cannot move. Current Position: ("
-			<< playerX << ", " << playerZ << ")" << std::endl;
+	if (bolt2 && checkCollision(playerX, playerZ, -15, 224, collisionThreshold)) {
+		bolt2 = false;
+		activateSpeedBoost();
+		std::cout << "Collision with Bolt 2!" << std::endl;
+	}
+	if (bolt3 && checkCollision(playerX, playerZ, 125, 212, collisionThreshold)) {
+		bolt3 = false;
+		activateSpeedBoost();
+		std::cout << "Collision with Bolt 3!" << std::endl;
+	}
+	if (bolt4 && checkCollision(playerX, playerZ, 135, 78, collisionThreshold)) {
+		bolt4 = false;
+		activateSpeedBoost();
+		std::cout << "Collision with Bolt 4!" << std::endl;
+	}
+	if (bolt5 && checkCollision(playerX, playerZ, 178, -62, collisionThreshold)) {
+		bolt5 = false;
+		activateSpeedBoost();
+		std::cout << "Collision with Bolt 5!" << std::endl;
 	}
 }
+
+
+
 
 
 
@@ -271,70 +402,32 @@ public:
 };
 
 // Individual boundary instances
-Boundary track1(-7.9f, 10.8f, 0.0f, 123.0f);    // Track 1
-Boundary uTurn12(-17.0f, -7.5f, 98.0f, 123.0f);  // U-turn 12
-Boundary track2(-95.0f, -4.0f, 116.0f, 135.0f); // Track 2
-Boundary uTurn23(-92.0f, -74.0f, 0.0f, 0.0f);    // U-turn 23 (placeholders)
-Boundary track3(-99.0f, -79.0f, 130.0f, 200.0f); // Track 3
-Boundary uTurn34(-99.0f, -64.0f, 200.0f, 220.0f); // U-turn 34
-Boundary track4(-64.0f, 153.0f, 207.5f, 235.0f);// Track 4
-
-
-
-
-
-
-
-Boundary trackj1(150.0,183.0,203.0f,223.0f);// Track 4
-
-Boundary roadj1(165.0, 187.95, 82.9, 204.0);
-
-Boundary trackj2(160.0f, 182.83f, 71.9521f, 83.0f);// Track 4
-
-Boundary roadj2(90.0f,163.0f,63.669f,85.7f);// Track 4
-
-
+Boundary track1(-7.9f, 12.8f, 0.0f, 125.0f);    // Track 1
+Boundary uTurn12(-19.0f, -3.5f, 96.0f, 135.0f);  // U-turn 12
+Boundary track2(-97.0f, -2.0f, 114.0f, 137.0f); // Track 2
+Boundary track3(-101.0f, -70.0f, 128.0f, 202.0f); // Track 3
+Boundary uTurn34(-101.0f, -67.0f, 198.0f, 220.0f); // U-turn 34
+Boundary track4(-68.0f, 157.0f, 207.5f, 231.0f);// Track 4
+Boundary uTurn23(0,0,0,0);
+Boundary trackj1(146.0,187.0,200.0f,225.0f);// Track 4
+Boundary roadj1(160.0, 187.95, 80.9, 206.0);
+Boundary trackj2(158.0f, 180.83f, 69.9521f, 85.0f);// Track 4
+Boundary roadj2(90.0f,159.0f,63.669f,85.7f);// Track 4
 ///////////////////////////////////////////////////////////////
-
-
-
-
 Boundary trackj3(74.0f, 97.0f,60.0f, 82.0f);// Track 4
-
 Boundary roadj3(69.6f,90.0f,30.0f,70.0f);// Track 4
-
-
-
-
-
-
 //////////////////////////////////
-
-
-
-
-
-Boundary trackj4(70.0f,86.0f,15.0f,34.0f);// Track 4
-
-
-Boundary roadj4(86.0f, 172.0f, 7.0f, 29.0f);// Track 4
+Boundary trackj4(68.0f,90.0f,12.0f,45.0f);// Track 4
+Boundary roadj4(86.0f, 172.0f, 0.0f, 35.0f);// Track 4
 /////////////////////////////////////////////////////////////
-
-
-
-Boundary trackj5(164.294f,179.294f, -68.6447f, -46.6447f);// Track 4
-
+Boundary trackj5(161.294f,179.294f, -62.6447f, -46.6447f);// Track 4
 Boundary roadj5(162.7f,180.7f,-46.6f,9.5f);// Track 4
-
 Boundary trackj6(163.818f,178.18f, -68.6447f, -46.6447f);// Track 4
-
-
 /////////////////////////////////////////
 Boundary roadj6(175.0f,230.f,-80.0f,-59.32f);// Track 4
-
 Boundary trackj7(214.0f,239.0f,-83.2103,-63.2103);// Track 4
-
 Boundary roadj7(222.0f,244.5f,-216.0f,-83.0f);// Track 4
+Boundary finish1(210,260,-150,-140);
 
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
@@ -445,7 +538,6 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 
 
 bool canMove(float x, float z, float angle, float speed, bool isForward) {
-
 	float carLength = 3.0f;
 	float carWidth = 1.7f;
 
@@ -478,7 +570,9 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 		float cornerZ = newZ + (offsets[i][0] * sinAngle + offsets[i][1] * cosAngle);
 
 		// Check boundary
-		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)) {
+		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)
+			|| isColliding(cornerX, cornerZ, Obj4XPos, Obj4ZPos) || isColliding(cornerX, cornerZ, Obj5XPos, Obj5ZPos) || isColliding(cornerX, cornerZ, Obj6XPos, Obj6ZPos)
+			|| isColliding(cornerX, cornerZ, Obj7XPos, Obj7ZPos) || isColliding(cornerX, cornerZ, Obj8XPos, Obj8ZPos) || isColliding(cornerX, cornerZ, Obj9XPos, Obj9ZPos)) {
 			return false; // One corner is out of bounds
 		}
 
@@ -513,6 +607,15 @@ void moveBackward(float x, float z, float angle, float speed) {
 	}
 }
 	
+
+void checkWin() {
+	if (finish1.contains(playerXPos, playerZPos)) {
+		cutScene1 = true;
+		track1Win = true;
+		std::cout << "Car reached finish line 1" << std::endl;
+	}
+}
+
 
 void rotateRight(float& angle, float speed, float rotationSpeed) {
 	float newAngle = angle - rotationSpeed;
@@ -553,19 +656,19 @@ void rotateLeft(float& angle, float speed, float rotationSpeed) {
 	}
 }
 void keyboard(unsigned char key, int x, int y) {
-	float speed = 1.0f;                  // Movement speed
+	float speed = moveSpeed;                  // Movement speed
 	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
 
-	if (key == 's') {
+	if (key == 's' && !cutScene1) {
 		moveBackward(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'w') {
+	else if (key == 'w' && !cutScene1) {
 		moveFront(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'd') {
+	else if (key == 'd' && !cutScene1) {
 		rotateRight(characterAngle, speed, rotationSpeed);
 	}
-	else if (key == 'a') {
+	else if (key == 'a' && !cutScene1) {
 		rotateLeft(characterAngle, speed, rotationSpeed);
 	}
 	else if (key == 't')
@@ -597,6 +700,8 @@ Model_3DS model_obstacle;
 Model_3DS model_track;
 Model_3DS model_cage;
 Model_3DS model_matar;
+Model_3DS model_bolt;
+Model_3DS model_stadium;
 Car car(model_car, 0, 0, 0);
 
 // Textures
@@ -708,48 +813,80 @@ void myDisplay(void)
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightIntensity);
 	setupCamera();
-	// Draw Ground
-	
-
-	// Draw Tree Model
-	/*glPushMatrix();
-	glTranslatef(10, 0, 0);
-	glScalef(0.7, 0.7, 0.7);
-	model_tree.Draw();
-	glPopMatrix();*/
-
-	// Draw house Model
-	/*glPushMatrix();
-	glRotatef(90.f, 1, 0, 0);
-	model_house.Draw();
-	glPopMatrix();*/
 
 
-	updatePlayerPosition(playerXPos, playerZPos, ObjXPos, ObjZPos);
 
 	glPushMatrix();
 	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
 	glRotatef(characterAngle * 180.0f / M_PI, 0.0f, 1.0f, 0.0f);
 
 	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
-	
+
 	car.render();// Draw the car model
 
 	glPopMatrix();
+
+	if (bolt1) {
+	glPushMatrix();
+	glTranslatef(0, 4.2, 78);
+	glScalef(0.01, 0.01, 0.01);
+	glRotated(boltRotationAngle, 0, 1, 0);
+	model_bolt.Draw();
+	glPopMatrix();
+}
+
+	if (bolt2) {
+
+		glPushMatrix();
+		glTranslatef(-15, 4.2, 224);
+		glScalef(0.01, 0.01, 0.01);
+		glRotated(boltRotationAngle, 0, 1, 0);
+		model_bolt.Draw();
+		glPopMatrix();
+	}
+
+	if (bolt3) {
+		glPushMatrix();
+		glTranslatef(125, 4.2, 212);
+		glScalef(0.01, 0.01, 0.01);
+		glRotated(boltRotationAngle, 0, 1, 0);
+		model_bolt.Draw();
+		glPopMatrix();
+	}
 	
 
+
+	if (bolt4) {
+		glPushMatrix();
+		glTranslatef(135, 4.2, 78);
+		glScalef(0.01, 0.01, 0.01);
+		glRotated(boltRotationAngle, 0, 1, 0);
+		model_bolt.Draw();
+		glPopMatrix();
+	}
+
+	if (bolt5) {
+		glPushMatrix();
+		glTranslatef(178, 4.2, -62);
+		glScalef(0.01, 0.01, 0.01);
+		glRotated(boltRotationAngle, 0, 1, 0);
+		model_bolt.Draw();
+		glPopMatrix();
+	}
+
 	glPushMatrix();
-	glTranslatef(ObjXPos, 0.0, ObjZPos);
+	glTranslatef(ObjXPos, 1.5, ObjZPos);
 	glRotated(90, 0, 1, 0);
 	glScalef(0.14f, 0.14f, 0.14f);
 	model_obstacle.Draw();
 	glPopMatrix();
+
 	glPushMatrix();
 	glTranslatef(Obj2XPos, 1.5, Obj2ZPos);
-	//glRotated(90, 0, 1, 0);
 	glScalef(0.14f, 0.14f, 0.14f);
 	model_obstacle.Draw();
 	glPopMatrix();
+	
 	glPushMatrix();
 	glTranslatef(Obj3XPos, 1.5, Obj3ZPos);
 	glRotated(90, 0, 1, 0);
@@ -758,7 +895,77 @@ void myDisplay(void)
 	glPopMatrix();
 	
 
-	 
+
+	glPushMatrix();
+	glTranslatef(Obj4XPos, 1.5, Obj4ZPos);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(Obj5XPos, 1.5, Obj5ZPos);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(Obj6XPos, 1.5, Obj6ZPos);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(Obj7XPos, 1.5, Obj7ZPos);
+	glRotated(90, 0, 1, 0);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(Obj8XPos, 1.5, Obj8ZPos);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(Obj9XPos, 1.5, Obj9ZPos);
+	glRotated(90, 0, 1, 0);
+	glScalef(0.14f, 0.14f, 0.14f);
+	model_obstacle.Draw();
+	glPopMatrix();
+
+
+	if (!cutScene1) {
+		// Draw cage and Mater in their initial positions
+		glPushMatrix();
+		glTranslated(230, 2, -160);
+		glScaled(0.04, 0.04, 0.04);
+		model_matar.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslated(230, 2, -160);
+		glScaled(0.45, 0.45, 0.45);
+		model_cage.Draw();
+		glPopMatrix();
+	}
+	else {
+		// Animate the cage moving upward
+		glPushMatrix();
+		glTranslated(230, 2 + cageYPos, -160); // Apply upward translation
+		glScaled(0.45, 0.45, 0.45);
+		model_cage.Draw();
+		glPopMatrix();
+
+		// Animate Mater rotating and jumping
+		glPushMatrix();
+		glTranslated(230 + 5 * cos(materRotationAngle * M_PI / 180.0),
+			2 + materJumpHeight,
+			-160 + 5 * sin(materRotationAngle * M_PI / 180.0)); // Rotate and jump
+		glScaled(0.04, 0.04, 0.04);
+		model_matar.Draw();
+		glPopMatrix();
+	}
 
 	glPushMatrix();
 	glTranslatef(-55.0, 0.0, -40.0);
@@ -766,10 +973,6 @@ void myDisplay(void)
 	glScalef(0.02f, 0.02f, 0.02f);
 	model_track.Draw();
 	glPopMatrix();
-
-
-	
-
 
 
 
@@ -830,6 +1033,18 @@ void myDisplay(void)
 
 	glutSwapBuffers();
 }
+
+void idleFunction() {
+	float deltaTime = 0.016f; // Assume ~60 FPS (16ms per frame)
+
+	updateBoltRotation();                 // Rotate the bolts
+	checkBoltCollisions(playerXPos, playerZPos); // Check collisions
+	updateSpeedBoostTimer(deltaTime);     // Update the speed boost timer
+	checkWin();
+	updateCutscene();
+	glutPostRedisplay();                  // Trigger a redisplay
+}
+
 
 //=======================================================================
 // Keyboard Function
@@ -933,7 +1148,7 @@ void myReshape(int w, int h)
 //=======================================================================
 void LoadAssets()
 {
-	FILE* bin3ds = fopen("Models/car/car/queen.3ds", "rb");
+	FILE* bin3ds = fopen("Models/collectible/bolt.3ds", "rb");
 	if (!bin3ds) {
 		perror("Failed to open file");
 		exit(EXIT_FAILURE);
@@ -943,8 +1158,11 @@ void LoadAssets()
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/weloTrack.3ds");
-	//model_matar.Load("Models/Matar/mater.3DS");
-	//model_cage.Load("Track/source/cagee.3ds");
+	model_stadium.Load("Track/source/stadium.3ds");
+	model_bolt.Load("Models/collectible/bolt.3ds");
+
+	model_matar.Load("Models/Matar/mater.3DS");
+	model_cage.Load("Track/source/cage.3ds");
 	// 
 	// Loading texture files
 	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
@@ -978,6 +1196,8 @@ void main(int argc, char** argv)
 	glutMouseFunc(myMouse);
 
 	glutReshapeFunc(myReshape);
+	glutIdleFunc(idleFunction); // Set idle function for smooth updates
+
 
 	myInit();
 

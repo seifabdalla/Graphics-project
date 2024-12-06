@@ -599,6 +599,7 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 
 
 bool canMove(float x, float z, float angle, float speed, bool isForward) {
+	return true;
 	float carLength = 3.0f;
 	float carWidth = 1.7f;
 
@@ -764,6 +765,7 @@ Model_3DS model_cage;
 Model_3DS model_matar;
 Model_3DS model_bolt;
 Model_3DS model_stadium;
+Model_3DS model_tunnle;
 Car car(model_car, 0, 0, 0);
 
 // Textures
@@ -1002,7 +1004,7 @@ void SetupLight() {
 		diffuseLight[2] = lerp(0.1f, 0.05f, t4);
 	}
 
-	if (timeOfDay > 2.0f && timeOfDay <= 4.0f)
+	if ((timeOfDay > 1.0f && timeOfDay <= 4.0f)||!isDay)
 	{
 		setupHeadlights();
 	}
@@ -1140,6 +1142,8 @@ void myDisplay(void)
 
 	glPopMatrix();
 
+	
+
 	if (bolt1) {
 	glPushMatrix();
 	glTranslatef(0, 4.2, 78);
@@ -1248,6 +1252,7 @@ void myDisplay(void)
 	model_obstacle.Draw();
 	glPopMatrix();
 
+	
 
 	if (!cutScene1) {
 		// Draw cage and Mater in their initial positions
@@ -1285,7 +1290,11 @@ void myDisplay(void)
 	glTranslatef(-55.0, 0.0, -40.0);
 
 	glScalef(0.02f, 0.02f, 0.02f);
-	model_track.Draw();
+	//model_track.Draw();
+	glPopMatrix();
+
+	glPushMatrix();
+	model_tunnle.Draw();
 	glPopMatrix();
 
 
@@ -1458,9 +1467,10 @@ void LoadAssets()
 	// Loading Model files
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
-	model_track.Load("Track/source/weloTrack.3ds");
-	//model_stadium.Load("Track/source/stadium.3ds");
+	model_track.Load("Track/source/desert.3ds");
+	model_stadium.Load("Track/source/stadium.3ds");
 	model_bolt.Load("Models/collectible/bolt.3ds");
+	model_tunnle.Load("Track/source/tunnle.3ds");
 
 	model_matar.Load("Models/Matar/mater.3DS");
 	model_cage.Load("Track/source/cage.3ds");

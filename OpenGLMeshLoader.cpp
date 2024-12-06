@@ -6,6 +6,7 @@
 #include <iostream>
 #include "Car.h"
 #include "fmod.hpp"
+#include <string>
 
 
 #define DEG2RAD(a) (a * 0.0174532925)
@@ -73,6 +74,7 @@ bool bolt1=true;bool bolt2 = true;bool bolt3 = true;bool bolt4 = true;bool bolt5
 
 int WIDTH = 1280;
 int HEIGHT = 720;
+int score = 0;
 float PlayerXPos = 0.0f;
 float PlayerZPos = 0.0f;
 float PlayerYPos = 2.0f;  // Adjust for ground level
@@ -301,7 +303,7 @@ public:
 			float offsetX = 4.7f * sin(playerAngle);
 			float offsetZ = 4.7f * cos(playerAngle);
 
-			eye = playerPosition + Vector3f(0.0f, 1.6f, 0.0f); // Slightly above the player's position
+			eye = playerPosition + Vector3f(1.0*sin(playerAngle), 1.7f, 1.0f*cos(playerAngle)); // Slightly above the player's position
 			center = playerPosition + Vector3f(offsetX, 1.6f, offsetZ); // Looking forward in the player's direction
 			up = Vector3f(0.0f, 1.0f, 0.0f); // Keep the up direction consistent
 		}
@@ -386,6 +388,7 @@ bool checkCollision(float playerX, float playerZ, float boltX, float boltZ, floa
 }
 
 void activateSpeedBoost() {
+	score += 100;
 	moveSpeed +=1 ;          // Increase speed
 	speedBoostActive = true;
 	// Activate boost
@@ -879,6 +882,69 @@ void UpdateTimeOfDay() {
 	}
 }
 
+void setupHeadlights() {
+	// Enable lighting for headlights 
+	glEnable(GL_LIGHTING);
+
+	// Calculate headlight positions based on car's position and angle 
+	float offsetX = 1.0f * sin(characterAngle);
+	float offsetZ = 1.0f * cos(characterAngle);
+
+	// Left headlight 
+	GLfloat headlightPosition1[4] = {
+		playerXPos +offsetX ,  // Lateral offset 
+		1.4f,  // Headlight height 
+		playerZPos +offsetZ,
+		1.0f   // Positional light 
+	};
+
+	// Right headlight 
+	GLfloat headlightPosition2[4] = {
+		playerXPos + offsetX,  // Lateral offset 
+		1.4f,  // Headlight height 
+		playerZPos + offsetZ,
+		1.0f   // Positional light 
+	};
+
+	// Headlight ambient - slightly dimmer to enhance contrast
+	GLfloat headlightAmbient[4] = { 0.1f, 0.1f, 0.1f, 1.0f };  // Dimmer ambient light
+
+	GLfloat headlightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Reduced intensity
+	GLfloat headlightSpecular[4] = { 1.0f, 1.0f, 1.0f, 1.0f };  // Reduced specular light
+
+
+
+	// Configure first headlight 
+	glLightfv(GL_LIGHT1, GL_POSITION, headlightPosition1);
+	glLightfv(GL_LIGHT1, GL_AMBIENT, headlightAmbient);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, headlightDiffuse);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, headlightSpecular);
+
+	// Spotlight parameters for more focused, intense light 
+	GLfloat spotDirection1[3] = { sin(characterAngle), -0.1f, cos(characterAngle) };
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 20.0f);  // Slightly wider beam 
+	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spotDirection1);
+	glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, 5.0f);  // Much higher intensity falloff 
+	glEnable(GL_LIGHT1);
+
+
+
+	// Same configuration for second headlight 
+	glLightfv(GL_LIGHT2, GL_POSITION, headlightPosition2);
+	glLightfv(GL_LIGHT2, GL_AMBIENT, headlightAmbient);
+	glLightfv(GL_LIGHT2, GL_DIFFUSE, headlightDiffuse);
+	glLightfv(GL_LIGHT2, GL_SPECULAR, headlightSpecular);
+
+	GLfloat spotDirection2[3] = { sin(characterAngle), -0.1f, cos(characterAngle) };
+	glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, 20.0f);  // Slightly wider beam 
+	glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, spotDirection2);
+	glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 5.0f);  // Much higher intensity falloff 
+	glEnable(GL_LIGHT2);
+	
+}
+
+
+
 // Function to update the time of day and the cycle behavior
 void SetupLight() {
 	glEnable(GL_LIGHTING);
@@ -936,12 +1002,51 @@ void SetupLight() {
 		diffuseLight[2] = lerp(0.1f, 0.05f, t4);
 	}
 
+	if (timeOfDay > 2.0f && timeOfDay <= 4.0f)
+	{
+		setupHeadlights();
+	}
+	else {
+		glDisable(GL_LIGHT1);
+		glDisable(GL_LIGHT2);
+
+	}
+
 	// Apply lighting properties
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
 }
 
+
+void renderScore() {
+	// Switch to orthographic projection
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0, 1280, 0, 720);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glDisable(GL_DEPTH_TEST);
+
+	// Render score
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glRasterPos2f(50, 650); // Adjust for your screen resolution
+	std::string scoreText = "Score: " + std::to_string(score);
+	for (char c : scoreText) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+	}
+
+	glEnable(GL_DEPTH_TEST);
+
+	// Restore matrices
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+}
 
 
 
@@ -1187,6 +1292,7 @@ void myDisplay(void)
 
 
 	RenderSkybox(blendFactor);
+	renderScore();
 	glutSwapBuffers();
 }
     // Time to hold textures (in frames)

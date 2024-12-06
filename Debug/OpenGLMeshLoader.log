@@ -1,8 +1,10 @@
 ﻿  OpenGLMeshLoader.cpp
-D:\projects\Graphics\Graphics-project\TextureBuilder.h(27,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
-D:\projects\Graphics\Graphics-project\TextureBuilder.h(28,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
-D:\projects\Graphics\Graphics-project\OpenGLMeshLoader.cpp(1346,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\seif1\OneDrive\Desktop\Graphics-project\TextureBuilder.h(27,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+  (compiling source file 'OpenGLMeshLoader.cpp')
+  
+C:\Users\seif1\OneDrive\Desktop\Graphics-project\TextureBuilder.h(28,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+  (compiling source file 'OpenGLMeshLoader.cpp')
+  
+C:\Users\seif1\OneDrive\Desktop\Graphics-project\OpenGLMeshLoader.cpp(1458,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
 Car.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/INCREMENTAL:NO' specification
-  OpenGLMeshLoader.vcxproj -> D:\projects\Graphics\Graphics-project\Debug\OpenGLMeshLoader19.exe
-  'pwsh.exe' is not recognized as an internal or external command,
-  operable program or batch file.
+  OpenGLMeshLoader.vcxproj -> C:\Users\seif1\OneDrive\Desktop\Graphics-project\Debug\OpenGLMeshLoader19.exe

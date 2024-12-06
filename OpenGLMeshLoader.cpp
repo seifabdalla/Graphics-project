@@ -31,11 +31,13 @@ FMOD::Sound* l = nullptr;
 FMOD::Sound* carMovingSound = nullptr;
 FMOD::Sound* carHittingSound = nullptr;
 FMOD::Sound* collectibleHittingSound = nullptr;
+FMOD::Sound* MatarDancingSound = nullptr;
 FMOD::Channel* musicChannel = nullptr;
 FMOD::Channel* gameWinCh = nullptr;
 FMOD::Channel* carMovingChannel = nullptr;
 FMOD::Channel* carHittingChannel = nullptr;
 FMOD::Channel* collectibleHittingChannel = nullptr;
+FMOD::Channel* MatarDancingChannel = nullptr;
 void initFMOD() {
 	FMOD::System_Create(&systemsound);
 	systemsound->init(512, FMOD_INIT_NORMAL, 0);
@@ -45,6 +47,7 @@ void initFMOD() {
 	systemsound->createSound("collectibleHit.mp3", FMOD_DEFAULT, 0, &collectibleHittingSound);
 	systemsound->createSound("gameWin.mp3", FMOD_DEFAULT, 0, &gameWin);
 	systemsound->createSound("gameLost.mp3", FMOD_DEFAULT, 0, &l);
+	systemsound->createSound("mater.mp3", FMOD_DEFAULT, 0, &MatarDancingSound);
 	systemsound->playSound(backgroundMusic, 0, false, &musicChannel);
 	musicChannel->setVolume(0.1f);
 
@@ -222,6 +225,13 @@ enum CameraView {
 	TOP
 };
 
+void playDanceMatar() {
+	bool isPlaying = false;
+	MatarDancingChannel->isPlaying(&isPlaying);
+	if (!isPlaying)
+		systemsound->playSound(MatarDancingSound, 0, false, &MatarDancingChannel);
+
+}
 
 class Vector3f {
 public:
@@ -652,6 +662,7 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)
 			|| isColliding(cornerX, cornerZ, Obj4XPos, Obj4ZPos) || isColliding(cornerX, cornerZ, Obj5XPos, Obj5ZPos) || isColliding(cornerX, cornerZ, Obj6XPos, Obj6ZPos)
 			|| isColliding(cornerX, cornerZ, Obj7XPos, Obj7ZPos) || isColliding(cornerX, cornerZ, Obj8XPos, Obj8ZPos) || isColliding(cornerX, cornerZ, Obj9XPos, Obj9ZPos)) {
+			score -= 10;
 			playcarHitSound();
 			return false; // One corner is out of bounds
 		}
@@ -708,6 +719,12 @@ void checkWin() {
 			gameOver = true;
 			playGameLose();
 
+
+		}
+
+		if (score <= -500) {
+			gameOver = true;
+			playGameLose();
 
 		}
 	}
@@ -910,6 +927,7 @@ void updateCutscene() {
 
 	if (cutScene1 && !animationComplete) {
 		// Animate the cage moving upwards
+		playDanceMatar();
 		if (cageYPos < 8.0f) {
 			cageYPos += 0.05f; // Incrementally move the cage up
 		}
@@ -1440,7 +1458,7 @@ void myDisplay(void)
 
 
 
-		if (true) {
+		if (bolt1) {
 			glPushMatrix();
 			glTranslatef(0, 4.2, 78);
 
@@ -1459,11 +1477,11 @@ void myDisplay(void)
 			glPopMatrix();
 		}
 
-		if (true) {
-
+		if (bolt2) {
 			glPushMatrix();
 			glTranslatef(-15, 4.2, 224);
-			glScalef(0.01, 0.01, 0.01);
+
+
 			glRotated(boltRotationAngle, 0, 1, 0);
 			if (track1Win) {
 				glTranslatef(0, -1, 0);
@@ -1474,13 +1492,15 @@ void myDisplay(void)
 				glScalef(0.01, 0.01, 0.01);
 				model_bolt.Draw();
 			}
+
 			glPopMatrix();
 		}
 
-		if (true) {
+		if (bolt3) {
 			glPushMatrix();
 			glTranslatef(125, 4.2, 212);
-			glScalef(0.01, 0.01, 0.01);
+
+
 			glRotated(boltRotationAngle, 0, 1, 0);
 			if (track1Win) {
 				glTranslatef(0, -1, 0);
@@ -1491,15 +1511,17 @@ void myDisplay(void)
 				glScalef(0.01, 0.01, 0.01);
 				model_bolt.Draw();
 			}
+
 			glPopMatrix();
 		}
 
 
 
-		if (true) {
+		if (bolt4) {
 			glPushMatrix();
 			glTranslatef(135, 4.2, 78);
-			glScalef(0.01, 0.01, 0.01);
+
+
 			glRotated(boltRotationAngle, 0, 1, 0);
 			if (track1Win) {
 				glTranslatef(0, -1, 0);
@@ -1509,13 +1531,15 @@ void myDisplay(void)
 			else {
 				glScalef(0.01, 0.01, 0.01);
 				model_bolt.Draw();
-			}	glPopMatrix();
-		}
+			}
 
-		if (true) {
+			glPopMatrix();
+		}
+		if (bolt1) {
 			glPushMatrix();
 			glTranslatef(178, 4.2, -62);
-			glScalef(0.01, 0.01, 0.01);
+
+
 			glRotated(boltRotationAngle, 0, 1, 0);
 			if (track1Win) {
 				glTranslatef(0, -1, 0);
@@ -1526,6 +1550,7 @@ void myDisplay(void)
 				glScalef(0.01, 0.01, 0.01);
 				model_bolt.Draw();
 			}
+
 			glPopMatrix();
 		}
 

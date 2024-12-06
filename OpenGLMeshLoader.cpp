@@ -15,13 +15,24 @@ using namespace std;
 
 bool track1Win = false;
 bool cutScene1 = false;
+bool gameOver = false;
 
+bool isGlowing=false;
+float glowingtime = 0.0f;
+
+float gameTime = 0.0f;
+
+float maxtime = 200.0f;
+ 
 FMOD::System* systemsound = nullptr;
 FMOD::Sound* backgroundMusic = nullptr;
+FMOD::Sound* gameWin = nullptr;
+FMOD::Sound* l = nullptr;
 FMOD::Sound* carMovingSound = nullptr;
 FMOD::Sound* carHittingSound = nullptr;
 FMOD::Sound* collectibleHittingSound = nullptr;
 FMOD::Channel* musicChannel = nullptr;
+FMOD::Channel* gameWinCh = nullptr;
 FMOD::Channel* carMovingChannel = nullptr;
 FMOD::Channel* carHittingChannel = nullptr;
 FMOD::Channel* collectibleHittingChannel = nullptr;
@@ -32,10 +43,14 @@ void initFMOD() {
 	systemsound->createSound("carMoving.mp3", FMOD_DEFAULT, 0, &carMovingSound);
 	systemsound->createSound("car_Hit.mp3", FMOD_DEFAULT, 0, &carHittingSound);
 	systemsound->createSound("collectibleHit.mp3", FMOD_DEFAULT, 0, &collectibleHittingSound);
+	systemsound->createSound("gameWin.mp3", FMOD_DEFAULT, 0, &gameWin);
+	systemsound->createSound("gameLost.mp3", FMOD_DEFAULT, 0, &l);
 	systemsound->playSound(backgroundMusic, 0, false, &musicChannel);
 	musicChannel->setVolume(0.1f);
 
 }
+
+
 void playcarMovingSound() {
 	bool isPlaying = false;
 	carMovingChannel->isPlaying(&isPlaying);
@@ -44,6 +59,34 @@ void playcarMovingSound() {
 
 	carMovingChannel->setVolume(0.03);
 	
+
+}
+void playGameWin() {
+	musicChannel->stop();
+	bool isPlaying = false;
+	gameWinCh->isPlaying(&isPlaying);
+	if(!isPlaying)
+	systemsound->playSound(gameWin, 0, false, &gameWinCh);
+
+	gameWinCh->setVolume(0.03);
+	
+
+}
+
+bool over = true;
+
+void playGameLose() {
+	if (over) {
+
+		musicChannel->stop();
+		bool isPlaying = false;
+		musicChannel->isPlaying(&isPlaying);
+		if (!isPlaying)
+			systemsound->playSound(l, 0, false, &musicChannel);
+		over = false;
+	}
+
+
 
 }
 
@@ -115,41 +158,7 @@ float cutsceneTimer = 0.0f;     // Timer to limit cutscene duration
 const int TIMER_INTERVAL = 16; // ~60 FPS
 
 // Function to update animation states for the cutscene
-void updateCutscene() {
-	if (cutScene1 && !animationComplete) {
-		// Animate the cage moving upwards
-		if (cageYPos < 8.0f) {
-			cageYPos += 0.05f; // Incrementally move the cage up
-		}
 
-		if (cageYPos >= 8) {// Animate Mater rotating around a point and jumping
-			materRotationAngle += 2.0f; // Increment rotation angle
-			if (materRotationAngle > 360.0f) {
-				materRotationAngle -= 360.0f; // Keep angle within bounds
-			}
-
-			// Jump logic: Increment or decrement jump height
-			if (jumpStage == 0) {
-				materJumpHeight += 0.05f; // Move up
-				if (materJumpHeight >= 1.5f) {
-					jumpStage = 1; // Switch to falling down
-				}
-			}
-			else if (jumpStage == 1) {
-				materJumpHeight -= 0.05f; // Move down
-				if (materJumpHeight <= 0.0f) {
-					jumpStage = 0; // Switch back to jumping up
-				}
-			}
-		}
-		// Update the cutscene timer
-		cutsceneTimer += TIMER_INTERVAL / 1000.0f; // Convert milliseconds to seconds
-		if (cutsceneTimer >= 10.0f) { // End cutscene after 10 seconds
-			animationComplete = true;
-		}
-	}
-	glutPostRedisplay(); // Redraw the scene
-}
 
 float boltRotationAngle = 0.0f; // Rotation angle for bolts
 const float rotationSpeed = 0.7f; // Adjust rotation speed
@@ -177,6 +186,13 @@ GLdouble fovy = 45.0;
 GLdouble aspectRatio = (GLdouble)WIDTH / (GLdouble)HEIGHT;
 GLdouble zNear = 0.1;
 GLdouble zFar = 100;
+
+
+
+
+
+
+
 
 class Vector
 {
@@ -245,7 +261,7 @@ public:
 
 float playerXPos = 0.0f;
 float playerZPos = 0.0f;
-
+bool gamewin = false;
 
 void updateSpeedBoostTimer(float deltaTime) {
 	if (speedBoostActive) {
@@ -387,21 +403,28 @@ bool checkCollision(float playerX, float playerZ, float boltX, float boltZ, floa
 	return (deltaX * deltaX + deltaZ * deltaZ) <= (threshold * threshold);
 }
 
+
 void activateSpeedBoost() {
+	isGlowing = true;
+	glowingtime = 0.0f;
 	score += 100;
-	moveSpeed +=1 ;          // Increase speed
-	speedBoostActive = true;
-	// Activate boost
-	speedBoostTimer = 2.5f; 
-	// Set 2-second timer
+	if (!track1Win) {
+		moveSpeed += 1;          // Increase speed
+		speedBoostActive = true;
+		// Activate boost
+		speedBoostTimer = 2.5f;
+		// Set 2-second timer
+	}
 	playCollectibleSound();
 }
 
 void checkBoltCollisions(float playerX, float playerZ) {
+	
 	float collisionThreshold = 5.0f; // Adjust based on the size of the player and bolts
 
 	// Check each bolt individually
 	if (bolt1 && checkCollision(playerX, playerZ, 0, 78, collisionThreshold)) {
+		
 		bolt1 = false;
 		activateSpeedBoost(); // Activate speed boost
 		std::cout << "Collision with Bolt 1!" << std::endl;
@@ -461,49 +484,45 @@ public:
 		return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
 	}
 };
-
 // Individual boundary instances
 Boundary track1(-7.9f, 12.8f, 0.0f, 125.0f);    // Track 1
 Boundary uTurn12(-19.0f, -3.5f, 96.0f, 135.0f);  // U-turn 12
-Boundary track2(-97.0f, -2.0f, 114.0f, 137.0f); // Track 2
-Boundary track3(-101.0f, -70.0f, 128.0f, 202.0f); // Track 3
-Boundary uTurn34(-101.0f, -67.0f, 198.0f, 220.0f); // U-turn 34
-Boundary track4(-68.0f, 157.0f, 207.5f, 231.0f);// Track 4
-Boundary uTurn23(0,0,0,0);
-Boundary trackj1(146.0,187.0,200.0f,225.0f);// Track 4
-Boundary roadj1(160.0, 187.95, 80.9, 206.0);
+Boundary track2(-90.0f, -2.0f, 114.0f, 137.0f); // Track 2
+Boundary track3(-101.0f, -79.0f, 128.0f, 202.0f); // Track 3
+Boundary uTurn34(-101.0f, -65.0f, 198.0f, 220.0f); // U-turn 34
+Boundary track4(-69.0f, 157.0f, 207.5f, 227.0f);// Track 4
+Boundary uTurn23(0, 0, 0, 0);
+Boundary trackj1(146.0, 187.0, 200.0f, 225.0f);// Track 4
+Boundary roadj1(165.0, 187.95, 80.9, 206.0);
 Boundary trackj2(158.0f, 180.83f, 69.9521f, 85.0f);// Track 4
-Boundary roadj2(90.0f,159.0f,63.669f,85.7f);// Track 4
+Boundary roadj2(90.0f, 159.0f, 63.669f, 85.7f);// Track 4
 ///////////////////////////////////////////////////////////////
-Boundary trackj3(74.0f, 97.0f,60.0f, 82.0f);// Track 4
-Boundary roadj3(69.6f,90.0f,30.0f,70.0f);// Track 4
+Boundary trackj3(74.0f, 97.0f, 60.0f, 82.0f);// Track 4
+Boundary roadj3(69.6f, 92.0f, 27.0f, 70.0f);// Track 4
 //////////////////////////////////
-Boundary trackj4(68.0f,90.0f,12.0f,45.0f);// Track 4
-Boundary roadj4(86.0f, 172.0f, 0.0f, 35.0f);// Track 4
+Boundary trackj4(68.0f, 90.0f, 12.0f, 45.0f);// Track 4
+Boundary roadj4(86.0f, 172.0f, 10.0f, 28.0f);// Track 4
 /////////////////////////////////////////////////////////////
-Boundary trackj5(161.294f,179.294f, -62.6447f, -46.6447f);// Track 4
-Boundary roadj5(162.7f,180.7f,-46.6f,9.5f);// Track 4
-Boundary trackj6(163.818f,178.18f, -68.6447f, -46.6447f);// Track 4
+Boundary trackj5(161.294f, 179.294f, -62.6447f, -46.6447f);// Track 4
+Boundary roadj5(162.7f, 180.7f, -50.6f, 9.5f);// Track 4
+Boundary trackj6(163.818f, 178.18f, -68.6447f, -46.6447f);// Track 4
 /////////////////////////////////////////
-Boundary roadj6(175.0f,230.f,-80.0f,-59.32f);// Track 4
-Boundary trackj7(214.0f,239.0f,-83.2103,-63.2103);// Track 4
-Boundary roadj7(222.0f,244.5f,-216.0f,-83.0f);// Track 4
-Boundary finish1(210,260,-150,-140);
+Boundary roadj6(175.0f, 230.f, -80.0f, -59.32f);// Track 4
+Boundary trackj7(214.0f, 239.0f, -83.2103, -63.2103);// Track 4
+Boundary roadj7(222.0f, 242.5f, -216.0f, -83.0f);// Track 4
+Boundary finish1(210, 260, -150, -140);
 
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
 	static int currentTrack = 1; // Default to track 1
 
 	// Check for each boundary individually
-	
+
 	if (track1.contains(x, z)) {
 		currentTrack = 1;
 		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
-	}
-	else if (uTurn12.contains(x, z)) {
-		std::cout << "Car is in U-turn 1!" << std::endl;
-		return true;
+
 	}
 	else if (track2.contains(x, z)) {
 		currentTrack = 2;
@@ -597,9 +616,7 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 }
 
 
-
 bool canMove(float x, float z, float angle, float speed, bool isForward) {
-	return true;
 	float carLength = 3.0f;
 	float carWidth = 1.7f;
 
@@ -672,12 +689,29 @@ void moveBackward(float x, float z, float angle, float speed) {
 	
 
 void checkWin() {
-	if (finish1.contains(playerXPos, playerZPos)) {
+	if (finish1.contains(playerXPos, playerZPos)  ) {
 		cutScene1 = true;
-		track1Win = true;
+		std::cout << "Car reached finish line 1" << std::endl;
+	}
+
+	if (finish1.contains(playerXPos, playerZPos) && track1Win) {
+		gamewin = true;
 		std::cout << "Car reached finish line 1" << std::endl;
 	}
 }
+	void checkLose() {
+		// Get elapsed time in seconds
+		float gameTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+
+		// Check if game time exceeds the maximum allowed time
+		if (gameTime >= maxtime) {
+			gameOver = true;
+			playGameLose();
+
+
+		}
+	}
+
 
 
 void rotateRight(float& angle, float speed, float rotationSpeed) {
@@ -722,16 +756,16 @@ void keyboard(unsigned char key, int x, int y) {
 	float speed = moveSpeed;                  // Movement speed
 	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
 
-	if (key == 's' && !cutScene1) {
+	if (key == 's' && !cutScene1 && !gameOver) {
 		moveBackward(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'w' && !cutScene1) {
+	else if (key == 'w' && !cutScene1 && !gameOver) {
 		moveFront(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'd' && !cutScene1) {
+	else if (key == 'd' && !cutScene1 && !gameOver) {
 		rotateRight(characterAngle, speed, rotationSpeed);
 	}
-	else if (key == 'a' && !cutScene1) {
+	else if (key == 'a' && !cutScene1 && !gameOver) {
 		rotateLeft(characterAngle, speed, rotationSpeed);
 	}
 	else if (key == 't')
@@ -757,6 +791,7 @@ void keyboard(unsigned char key, int x, int y) {
 
 
 
+
 // Model Variables
 Model_3DS model_car;
 Model_3DS model_obstacle;
@@ -765,8 +800,16 @@ Model_3DS model_cage;
 Model_3DS model_matar;
 Model_3DS model_bolt;
 Model_3DS model_stadium;
-Model_3DS model_tunnle;
+Model_3DS tunnle;
+Model_3DS cup;
+Model_3DS obstacle2;
+Model_3DS finish;
 Car car(model_car, 0, 0, 0);
+Car car1(model_car, 0, 0, 0);
+Car car2(model_car, 0, 0, 0);
+Car car3(model_car, 0, 0, 0);
+Car car4(model_car, 0, 0, 0);
+Car car5(model_car, 0, 0, 0);
 
 // Textures
 GLTexture tex_obs;
@@ -821,6 +864,9 @@ void InitMaterial()
 	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
 }
 
+float cutsceneLightTimer = 0.0f;     // Timer for the dimming/brightening phase
+
+
 //=======================================================================
 // OpengGL Configuration Function
 //=======================================================================
@@ -858,6 +904,78 @@ void myInit(void)
 
 	glEnable(GL_NORMALIZE);
 }
+
+
+void updateCutscene() {
+
+	if (cutScene1 && !animationComplete) {
+		// Animate the cage moving upwards
+		if (cageYPos < 8.0f) {
+			cageYPos += 0.05f; // Incrementally move the cage up
+		}
+
+		if (cageYPos >= 8.0f) { // Animate Mater rotating around a point and jumping
+			materRotationAngle += 2.0f; // Increment rotation angle
+			if (materRotationAngle > 360.0f) {
+				materRotationAngle -= 360.0f; // Keep angle within bounds
+			}
+
+			// Jump logic: Increment or decrement jump height
+			if (jumpStage == 0) {
+				materJumpHeight += 0.05f; // Move up
+				if (materJumpHeight >= 1.5f) {
+					jumpStage = 1; // Switch to falling down
+				}
+			}
+			else if (jumpStage == 1) {
+				materJumpHeight -= 0.05f; // Move down
+				if (materJumpHeight <= 0.0f) {
+					jumpStage = 0; // Switch back to jumping up
+				}
+			}
+		}
+
+		cutsceneTimer += TIMER_INTERVAL / 1000.0f; // Convert milliseconds to seconds
+
+
+		// Update the cutscene timer
+		if (cutsceneTimer >= 10.0f) { // End cutscene animation after 10 seconds
+			animationComplete = true;
+		}
+	}
+
+	// Smooth player movement in the -z direction after cutscene ends
+	if (animationComplete && cutsceneTimer < 30.0f) {
+		cutsceneTimer += TIMER_INTERVAL / 1000.0f; // Convert milliseconds to seconds
+
+		if (cutsceneTimer < 20) {
+			characterAngle = M_PI;
+			rotationAngle = M_PI;
+			float elapsed = cutsceneTimer - 10.0f; // Time elapsed since the cutscene ended
+			playerZPos -= 10.0f * (TIMER_INTERVAL / 1000.0f); // Decrease z-position smoothly
+			playerXPos = 230;
+			camera.updateCameraPosition(characterAngle);
+			// Optional: Ensure smooth movement doesn't stop prematurely
+		}
+		else {
+			playerXPos = 0;
+			playerZPos = 0;
+			characterAngle = 0;
+			rotationAngle = 0;
+			camera.updateCameraPosition(characterAngle);
+		}
+
+		
+	}
+	if (cutsceneTimer >= 30.0f) {
+		playerZPos = playerZPos; // Finalize position at this point
+		cutScene1 = false;
+		track1Win = true;
+	}
+
+	glutPostRedisplay(); // Redraw the scene
+}
+
 
 //=======================================================================
 // Render Ground Function
@@ -945,6 +1063,9 @@ void setupHeadlights() {
 	
 }
 
+// Global variables for cutscene lighting
+float cutsceneLightIntensity = 1.0f; // Start fully lit
+bool isDimming = true;               // Whether the light is currently dimming
 
 
 // Function to update the time of day and the cycle behavior
@@ -952,72 +1073,124 @@ void SetupLight() {
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 
-	// Light position (simulating sunlight direction)
-	GLfloat lightPosition[] = { 0.0f, 1.0f, 0.0f, 0.0f }; // Directional light
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
-	// Initialize light properties
-	GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	GLfloat diffuseLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	GLfloat specularLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-	float t = timeOfDay / 4.0f;  // Normalize time to [0, 1]
-	std::cout << t << endl;
-	// Smooth day-night transitions using phases
-	if (timeOfDay >= 0.0f && timeOfDay <= 1.0f) {
-		// Dawn (night to day transition)
-		ambientLight[0] = lerp(0.05f, 0.4f, t*5);  // Low red
-		ambientLight[1] = lerp(0.05f, 0.5f, t * 5);  // Moderate green
-		ambientLight[2] = lerp(0.1f, 0.8f, t * 5);   // Strong blue
-		diffuseLight[0] = lerp(0.1f, 0.8f, t * 5);
-		diffuseLight[1] = lerp(0.1f, 0.9f, t * 5);
-		diffuseLight[2] = lerp(0.2f, 1.0f, t * 5);
-	}
-	else if (timeOfDay > 1.0f && timeOfDay <= 2.0f) {
-		// Daytime (full brightness)
-		float t2 = (timeOfDay - 1.0f) / 1.0f;
-		ambientLight[0] = lerp(0.4f, 0.5f, t2);  // Balanced lighting
-		ambientLight[1] = lerp(0.5f, 0.5f, t2);
-		ambientLight[2] = lerp(0.8f, 0.6f, t2);
-		diffuseLight[0] = 1.0f;
-		diffuseLight[1] = 1.0f;
-		diffuseLight[2] = 0.9f;
-	}
-	else if (timeOfDay > 2.0f && timeOfDay <= 3.0f) {
-		// Dusk (day to night transition)
-		float t3 = (timeOfDay - 2.0f) / 1.0f;
-		ambientLight[0] = lerp(0.5f, 0.1f, t3);
-		ambientLight[1] = lerp(0.5f, 0.05f, t3);
-		ambientLight[2] = lerp(0.6f, 0.2f, t3);
-		diffuseLight[0] = lerp(1.0f, 0.3f, t3);
-		diffuseLight[1] = lerp(0.9f, 0.2f, t3);
-		diffuseLight[2] = lerp(0.8f, 0.1f, t3);
-	}
-	else if (timeOfDay > 3.0f && timeOfDay <= 4.0f) {
-		// Nighttime (dim light)
-		float t4 = (timeOfDay - 3.0f) / 1.0f;
-		ambientLight[0] = lerp(0.1f, 0.05f, t4);
-		ambientLight[1] = lerp(0.05f, 0.05f, t4);
-		ambientLight[2] = lerp(0.2f, 0.1f, t4);
-		diffuseLight[0] = lerp(0.3f, 0.1f, t4);
-		diffuseLight[1] = lerp(0.2f, 0.05f, t4);
-		diffuseLight[2] = lerp(0.1f, 0.05f, t4);
-	}
-
-	if ((timeOfDay > 1.0f && timeOfDay <= 4.0f)||!isDay)
-	{
-		setupHeadlights();
-	}
-	else {
+	if (cutScene1 && animationComplete) {
+		// Disable all lights except GL_LIGHT3
+		glDisable(GL_LIGHT0);
 		glDisable(GL_LIGHT1);
 		glDisable(GL_LIGHT2);
+		glEnable(GL_LIGHT3);
 
+		// Light position (simulating a spotlight or focused light for cutscene)
+		GLfloat lightPosition[] = { 0.0f, 1.0f, 0.0f, 0.0f }; // Directional light
+		glLightfv(GL_LIGHT3, GL_POSITION, lightPosition);
+
+		// Update the timer for the cutscene lighting
+		cutsceneLightTimer += TIMER_INTERVAL / 1000.0f; // Increment timer (convert ms to seconds)
+
+		if (isDimming) {
+			// Dim the lights over 20 seconds
+			cutsceneLightIntensity = 1.0f - (cutsceneLightTimer / 3.0f);
+			if (cutsceneLightTimer >= 20.0f) {
+				isDimming = false;     
+				updateCutscene();
+			}
+		}
+		else {
+			// Brighten the lights over 30 seconds
+			cutsceneLightIntensity += (cutsceneLightTimer-20) / 30.0f;
+			if (cutsceneLightTimer >= 50) {
+				cutsceneLightIntensity = 1.0f; // Ensure fully bright
+			}
+		}
+
+		// Set light intensity during cutscene
+		GLfloat ambientLight[] = { cutsceneLightIntensity * 0.2f, cutsceneLightIntensity * 0.2f, cutsceneLightIntensity * 0.2f, 1.0f }; // Low ambient light
+		GLfloat diffuseLight[] = { cutsceneLightIntensity * 0.8f, cutsceneLightIntensity * 0.8f, cutsceneLightIntensity * 0.8f, 1.0f }; // Brighter diffuse light
+		GLfloat specularLight[] = { cutsceneLightIntensity, cutsceneLightIntensity, cutsceneLightIntensity, 1.0f }; // Full specular light
+
+		glLightfv(GL_LIGHT3, GL_AMBIENT, ambientLight);
+		glLightfv(GL_LIGHT3, GL_DIFFUSE, diffuseLight);
+		glLightfv(GL_LIGHT3, GL_SPECULAR, specularLight);
+		updateCutscene();
 	}
+	else {
 
-	// Apply lighting properties
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+
+		glEnable(GL_LIGHT0);
+		glEnable(GL_LIGHT1);
+		glEnable(GL_LIGHT2);
+		glDisable(GL_LIGHT3);
+
+		// Light position (simulating sunlight direction)
+		GLfloat lightPosition[] = { 0.0f, 1.0f, 0.0f, 0.0f }; // Directional light
+		glLightfv(GL_LIGHT3, GL_POSITION, lightPosition);
+
+		// Initialize light properties
+		GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		GLfloat diffuseLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		GLfloat specularLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+		float t = timeOfDay / 4.0f;  // Normalize time to [0, 1]
+		std::cout << t << endl;
+		// Smooth day-night transitions using phases
+		if (timeOfDay >= 0.0f && timeOfDay <= 1.0f) {
+			// Dawn (night to day transition)
+			ambientLight[0] = lerp(0.05f, 0.4f, t * 5);  // Low red
+			ambientLight[1] = lerp(0.05f, 0.5f, t * 5);  // Moderate green
+			ambientLight[2] = lerp(0.1f, 0.8f, t * 5);   // Strong blue
+			diffuseLight[0] = lerp(0.1f, 0.8f, t * 5);
+			diffuseLight[1] = lerp(0.1f, 0.9f, t * 5);
+			diffuseLight[2] = lerp(0.2f, 1.0f, t * 5);
+		}
+		else if (timeOfDay > 1.0f && timeOfDay <= 2.0f) {
+			// Daytime (full brightness)
+			float t2 = (timeOfDay - 1.0f) / 1.0f;
+			ambientLight[0] = lerp(0.4f, 0.5f, t2);  // Balanced lighting
+			ambientLight[1] = lerp(0.5f, 0.5f, t2);
+			ambientLight[2] = lerp(0.8f, 0.6f, t2);
+			diffuseLight[0] = 1.0f;
+			diffuseLight[1] = 1.0f;
+			diffuseLight[2] = 0.9f;
+		}
+		else if (timeOfDay > 2.0f && timeOfDay <= 3.0f) {
+			// Dusk (day to night transition)
+			float t3 = (timeOfDay - 2.0f) / 1.0f;
+			ambientLight[0] = lerp(0.5f, 0.1f, t3);
+			ambientLight[1] = lerp(0.5f, 0.05f, t3);
+			ambientLight[2] = lerp(0.6f, 0.2f, t3);
+			diffuseLight[0] = lerp(1.0f, 0.3f, t3);
+			diffuseLight[1] = lerp(0.9f, 0.2f, t3);
+			diffuseLight[2] = lerp(0.8f, 0.1f, t3);
+		}
+		else if (timeOfDay > 3.0f && timeOfDay <= 4.0f) {
+			// Nighttime (dim light)
+			float t4 = (timeOfDay - 3.0f) / 1.0f;
+			ambientLight[0] = lerp(0.1f, 0.05f, t4);
+			ambientLight[1] = lerp(0.05f, 0.05f, t4);
+			ambientLight[2] = lerp(0.2f, 0.1f, t4);
+			diffuseLight[0] = lerp(0.3f, 0.1f, t4);
+			diffuseLight[1] = lerp(0.2f, 0.05f, t4);
+			diffuseLight[2] = lerp(0.1f, 0.05f, t4);
+		}
+
+		if ((timeOfDay > 1.0f && timeOfDay <= 4.0f) || !isDay)
+		{
+			setupHeadlights();
+		}
+		else {
+			glDisable(GL_LIGHT1);
+			glDisable(GL_LIGHT2);
+
+		}
+
+		// Apply lighting properties
+		glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+		glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+	}
 }
 
 
@@ -1034,12 +1207,23 @@ void renderScore() {
 
 	glDisable(GL_DEPTH_TEST);
 
-	// Render score
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glRasterPos2f(50, 650); // Adjust for your screen resolution
-	std::string scoreText = "Score: " + std::to_string(score);
-	for (char c : scoreText) {
-		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+	if (!gameOver) {
+		// Render score
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glRasterPos2f(50, 650); // Adjust for your screen resolution
+		std::string scoreText = "Score: " + std::to_string(score);
+		for (char c : scoreText) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+	}
+
+	else {
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glRasterPos2f(650, 350); // Adjust for your screen resolution
+		std::string scoreText = "GAME OVER" ;
+		for (char c : scoreText) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
 	}
 
 	glEnable(GL_DEPTH_TEST);
@@ -1122,187 +1306,426 @@ void RenderSkybox(float blendFactor) {
 
 }
 
-void myDisplay(void)
-{
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+const int MAX_PARTICLES = 100;  // Maximum number of particles (confetti)
+float x[MAX_PARTICLES], y[MAX_PARTICLES], z[MAX_PARTICLES]; // Position
+float vx[MAX_PARTICLES], vy[MAX_PARTICLES], vz[MAX_PARTICLES]; // Velocity
+float r[MAX_PARTICLES], g[MAX_PARTICLES], b[MAX_PARTICLES]; // Color
+float lifetime[MAX_PARTICLES]; // Lifetime of each particle
+
+int numParticles = 0; // Current number of active particles
+int frameCount = 0; // To keep track of how many frames have passed
+int spawnInterval = 10; // Spawn a new particle every 10 frames (adjustable)
 
 
-	SetupLight();
-	setupCamera();
+void createConfetti(float xPos, float yPos, float zPos) {
+	if (numParticles < MAX_PARTICLES) {
+		// Create a new confetti particle
+		x[numParticles] = xPos;
+		y[numParticles] = yPos;
+		z[numParticles] = zPos;
 
+		// Set upward velocity (slower)
+		vx[numParticles] = (rand() % 100 - 50) / 200.0f;  // Random horizontal velocity
+		vy[numParticles] = 0.1f + (rand() % 100 + 50) / 500.0f;  // Upward velocity (slower)
+		vz[numParticles] = (rand() % 100 - 50) / 200.0f;  // Random horizontal velocity
 
+		// Randomize color
+		r[numParticles] = (rand() % 100) / 100.0f;
+		g[numParticles] = (rand() % 100) / 100.0f;
+		b[numParticles] = (rand() % 100) / 100.0f;
 
+		// Set lifetime (long enough to make them visible)
+		lifetime[numParticles] = 1.5f + (rand() % 100) / 100.0f;
+
+		numParticles++; // Increment the number of active particles
+	}
+}
+
+void updateConfetti() {
+	for (int i = 0; i < numParticles; i++) {
+		// Apply gravity (bring particles down after rising)
+		vy[i] -= 0.005f; // Slower downward velocity
+
+		// Update particle position based on velocity
+		x[i] += vx[i];
+		y[i] += vy[i];
+		z[i] += vz[i];
+
+		// Decrease the lifetime of the particle
+		lifetime[i] -= 0.01f;
+
+		// Remove particle when lifetime ends
+		if (lifetime[i] <= 0) {
+			// Move the last particle to the current position and remove the last particle
+			x[i] = x[numParticles - 1];
+			y[i] = y[numParticles - 1];
+			z[i] = z[numParticles - 1];
+			vx[i] = vx[numParticles - 1];
+			vy[i] = vy[numParticles - 1];
+			vz[i] = vz[numParticles - 1];
+			r[i] = r[numParticles - 1];
+			g[i] = g[numParticles - 1];
+			b[i] = b[numParticles - 1];
+			lifetime[i] = lifetime[numParticles - 1];
+			numParticles--; // Decrease the active particle count
+		}
+	}
+}
+
+void renderConfetti() {
+	glPointSize(5.0f);  // Set the size of the particles
 	glPushMatrix();
-	glTranslatef(playerXPos, PlayerYPos, playerZPos);// Position the car
-	glRotatef(characterAngle * 180.0f / M_PI, 0.0f, 1.0f, 0.0f);
 
-	//glScalef(0.02f, 0.02f, 0.02f); // Adjust the scale of the car if needed
-
-	car.render();// Draw the car model
-
-	glPopMatrix();
-
-	
-
-	if (bolt1) {
-	glPushMatrix();
-	glTranslatef(0, 4.2, 78);
-	glScalef(0.01, 0.01, 0.01);
-	glRotated(boltRotationAngle, 0, 1, 0);
-	model_bolt.Draw();
+	glBegin(GL_POINTS);  // Use points to render confetti particles
+	for (int i = 0; i < numParticles; i++) {
+		glColor3f(r[i], g[i], b[i]); // Set color for each particle
+		glVertex3f(x[i], y[i], z[i]); // Draw particle at its position
+	}
+	glEnd();
 	glPopMatrix();
 }
 
-	if (bolt2) {
+
+void myDisplay(void)
+{
+	std::cout << "car" << endl;
+	std::cout << "car should glow" << endl;
+	std::cout << "car should glow" << endl;
+	std::cout << "car should glow" << endl;
+	std::cout << "car should glow" << endl;
+
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+
+		SetupLight();
+		setupCamera();
+
 
 		glPushMatrix();
-		glTranslatef(-15, 4.2, 224);
-		glScalef(0.01, 0.01, 0.01);
-		glRotated(boltRotationAngle, 0, 1, 0);
-		model_bolt.Draw();
-		glPopMatrix();
-	}
+		glTranslatef(playerXPos, PlayerYPos, playerZPos); // Position the car
+		glRotatef(characterAngle * 180.0f / M_PI, 0.0f, 1.0f, 0.0f);
 
-	if (bolt3) {
-		glPushMatrix();
-		glTranslatef(125, 4.2, 212);
-		glScalef(0.01, 0.01, 0.01);
-		glRotated(boltRotationAngle, 0, 1, 0);
-		model_bolt.Draw();
+		if (isGlowing && glowingtime <= 3) {
+			std::cout << "car should glow" << endl;
+
+			// Determine which car to render based on glowingTime
+			int glowingStage = static_cast<int>(glowingtime / 0.2f); // Each car renders for 0.5 seconds
+
+			switch (glowingStage) {
+			case 0: car.render(); break;
+			case 1: car1.render(); break;
+			case 2: car2.render(); break;
+			case 3: car3.render(); break;
+			case 4: car4.render(); break;
+			case 5: car5.render(); break;
+			default:
+				isGlowing = false;  // Turn off glowing after all cars are rendered
+				glowingtime = 0.0f; // Reset glowingTime
+				car.render();       // Render the normal car after glowing ends
+				break;
+			}
+
+			// Increment glowingTime
+			glowingtime += TIMER_INTERVAL / 1000.0f; // Convert milliseconds to seconds
+		}
+		else {
+			// If not glowing, render the normal car
+			car.render();
+		}
+
 		glPopMatrix();
-	}
+
+
+
+		if (true) {
+			glPushMatrix();
+			glTranslatef(0, 4.2, 78);
+
+
+			glRotated(boltRotationAngle, 0, 1, 0);
+			if (track1Win) {
+				glTranslatef(0, -1, 0);
+				glScalef(0.0045, 0.0045, 0.0045);
+				cup.Draw();
+			}
+			else {
+				glScalef(0.01, 0.01, 0.01);
+				model_bolt.Draw();
+			}
+
+			glPopMatrix();
+		}
+
+		if (true) {
+
+			glPushMatrix();
+			glTranslatef(-15, 4.2, 224);
+			glScalef(0.01, 0.01, 0.01);
+			glRotated(boltRotationAngle, 0, 1, 0);
+			if (track1Win) {
+				glTranslatef(0, -1, 0);
+				glScalef(0.0045, 0.0045, 0.0045);
+				cup.Draw();
+			}
+			else {
+				glScalef(0.01, 0.01, 0.01);
+				model_bolt.Draw();
+			}
+			glPopMatrix();
+		}
+
+		if (true) {
+			glPushMatrix();
+			glTranslatef(125, 4.2, 212);
+			glScalef(0.01, 0.01, 0.01);
+			glRotated(boltRotationAngle, 0, 1, 0);
+			if (track1Win) {
+				glTranslatef(0, -1, 0);
+				glScalef(0.0045, 0.0045, 0.0045);
+				cup.Draw();
+			}
+			else {
+				glScalef(0.01, 0.01, 0.01);
+				model_bolt.Draw();
+			}
+			glPopMatrix();
+		}
+
+
+
+		if (true) {
+			glPushMatrix();
+			glTranslatef(135, 4.2, 78);
+			glScalef(0.01, 0.01, 0.01);
+			glRotated(boltRotationAngle, 0, 1, 0);
+			if (track1Win) {
+				glTranslatef(0, -1, 0);
+				glScalef(0.0045, 0.0045, 0.0045);
+				cup.Draw();
+			}
+			else {
+				glScalef(0.01, 0.01, 0.01);
+				model_bolt.Draw();
+			}	glPopMatrix();
+		}
+
+		if (true) {
+			glPushMatrix();
+			glTranslatef(178, 4.2, -62);
+			glScalef(0.01, 0.01, 0.01);
+			glRotated(boltRotationAngle, 0, 1, 0);
+			if (track1Win) {
+				glTranslatef(0, -1, 0);
+				glScalef(0.0045, 0.0045, 0.0045);
+				cup.Draw();
+			}
+			else {
+				glScalef(0.01, 0.01, 0.01);
+				model_bolt.Draw();
+			}
+			glPopMatrix();
+		}
+
+		glPushMatrix();
+		glTranslatef(ObjXPos, 1.5, ObjZPos);
+		glRotated(90, 0, 1, 0);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj2XPos, 1.5, Obj2ZPos);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj3XPos, 1.5, Obj3ZPos);
+		glRotated(90, 0, 1, 0);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+
+
+		glPushMatrix();
+		glTranslatef(Obj4XPos, 1.5, Obj4ZPos);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj5XPos, 1.5, Obj5ZPos);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj6XPos, 1.5, Obj6ZPos);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj7XPos, 1.5, Obj7ZPos);
+		glRotated(90, 0, 1, 0);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj8XPos, 1.5, Obj8ZPos);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(Obj9XPos, 1.5, Obj9ZPos);
+		glRotated(90, 0, 1, 0);
+		glScalef(0.14f, 0.14f, 0.14f);
+		if (track1Win) {
+			glTranslatef(0, 12.3, 0);
+			glScaled(0.5, 0.5, 0.5);
+			obstacle2.Draw();
+		}
+		else
+			model_obstacle.Draw();
+		glPopMatrix();		glPopMatrix();
+
+
+		if (track1Win) {
+			glPushMatrix();
+			glTranslated(232, 2, -160);
+			glScaled(0.04, 0.04, 0.04);
+			finish.Draw();
+			glPopMatrix();
+		}
+		else {
+			if (!cutScene1) {
+				// Draw cage and Mater in their initial positions
+				glPushMatrix();
+				glTranslated(230, 2, -160);
+				glScaled(0.04, 0.04, 0.04);
+				model_matar.Draw();
+				glPopMatrix();
+
+				glPushMatrix();
+				glTranslated(230, 2, -160);
+				glScaled(0.45, 0.45, 0.45);
+				model_cage.Draw();
+				glPopMatrix();
+			}
+			else {
+				if (!animationComplete) {
+					// Animate the cage moving upward
+					glPushMatrix();
+					glTranslated(230, 2 + cageYPos, -160); // Apply upward translation
+					glScaled(0.45, 0.45, 0.45);
+					model_cage.Draw();
+					glPopMatrix();
+
+					// Animate Mater rotating and jumping
+					glPushMatrix();
+					glTranslated(230 + 5 * cos(materRotationAngle * M_PI / 180.0),
+						2 + materJumpHeight,
+						-160 + 5 * sin(materRotationAngle * M_PI / 180.0)); // Rotate and jump
+					glScaled(0.04, 0.04, 0.04);
+					model_matar.Draw();
+					glPopMatrix();
+				}
+			}
+		}
+
+
+
+		if (!track1Win) {
+
+			glPushMatrix();
+			glTranslatef(-55.0, 0.0, -40.0);
+			glScalef(0.02f, 0.02f, 0.02f);
+			model_track.Draw();
+			glPopMatrix();
+
+			glPushMatrix();
+			glTranslatef(230, 1.75, -330);
+			glScalef(70, 50, 250);
+			tunnle.Draw();
+			glPopMatrix();
+		}
+		else {
+			glPushMatrix();
+			glTranslatef(-55.0, 0.0, -40.0);
+			glScalef(0.02f, 0.02f, 0.02f);
+			model_stadium.Draw();
+			glPopMatrix();
+		}
+
+		if (gamewin) {
+			glPushMatrix();
+			createConfetti(playerXPos, PlayerYPos + 2, playerZPos - 15);
+			updateConfetti();
+
+			// Render the confetti
+			renderConfetti();
+			playGameWin();
+			glPopMatrix();
+		}
+
+		RenderSkybox(blendFactor);
+		renderScore();
+		glutSwapBuffers();
 	
-
-
-	if (bolt4) {
-		glPushMatrix();
-		glTranslatef(135, 4.2, 78);
-		glScalef(0.01, 0.01, 0.01);
-		glRotated(boltRotationAngle, 0, 1, 0);
-		model_bolt.Draw();
-		glPopMatrix();
-	}
-
-	if (bolt5) {
-		glPushMatrix();
-		glTranslatef(178, 4.2, -62);
-		glScalef(0.01, 0.01, 0.01);
-		glRotated(boltRotationAngle, 0, 1, 0);
-		model_bolt.Draw();
-		glPopMatrix();
-	}
-
-	glPushMatrix();
-	glTranslatef(ObjXPos, 1.5, ObjZPos);
-	glRotated(90, 0, 1, 0);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj2XPos, 1.5, Obj2ZPos);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-	
-	glPushMatrix();
-	glTranslatef(Obj3XPos, 1.5, Obj3ZPos);
-	glRotated(90, 0, 1, 0);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-	
-
-
-	glPushMatrix();
-	glTranslatef(Obj4XPos, 1.5, Obj4ZPos);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj5XPos, 1.5, Obj5ZPos);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj6XPos, 1.5, Obj6ZPos);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj7XPos, 1.5, Obj7ZPos);
-	glRotated(90, 0, 1, 0);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj8XPos, 1.5, Obj8ZPos);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(Obj9XPos, 1.5, Obj9ZPos);
-	glRotated(90, 0, 1, 0);
-	glScalef(0.14f, 0.14f, 0.14f);
-	model_obstacle.Draw();
-	glPopMatrix();
-
-	
-
-	if (!cutScene1) {
-		// Draw cage and Mater in their initial positions
-		glPushMatrix();
-		glTranslated(230, 2, -160);
-		glScaled(0.04, 0.04, 0.04);
-		model_matar.Draw();
-		glPopMatrix();
-
-		glPushMatrix();
-		glTranslated(230, 2, -160);
-		glScaled(0.45, 0.45, 0.45);
-		model_cage.Draw();
-		glPopMatrix();
-	}
-	else {
-		// Animate the cage moving upward
-		glPushMatrix();
-		glTranslated(230, 2 + cageYPos, -160); // Apply upward translation
-		glScaled(0.45, 0.45, 0.45);
-		model_cage.Draw();
-		glPopMatrix();
-
-		// Animate Mater rotating and jumping
-		glPushMatrix();
-		glTranslated(230 + 5 * cos(materRotationAngle * M_PI / 180.0),
-			2 + materJumpHeight,
-			-160 + 5 * sin(materRotationAngle * M_PI / 180.0)); // Rotate and jump
-		glScaled(0.04, 0.04, 0.04);
-		model_matar.Draw();
-		glPopMatrix();
-	}
-
-	glPushMatrix();
-	glTranslatef(-55.0, 0.0, -40.0);
-
-	glScalef(0.02f, 0.02f, 0.02f);
-	//model_track.Draw();
-	glPopMatrix();
-
-	glPushMatrix();
-	model_tunnle.Draw();
-	glPopMatrix();
-
-
-
-
-	RenderSkybox(blendFactor);
-	renderScore();
-	glutSwapBuffers();
 }
     // Time to hold textures (in frames)
 void UpdateDayNightCycle() {
@@ -1350,6 +1773,7 @@ void idleFunction() {
 	checkBoltCollisions(playerXPos, playerZPos); // Check collisions
 	updateSpeedBoostTimer(deltaTime);     // Update the speed boost timer
 	checkWin();
+	checkLose();
 	updateCutscene();
 	glutPostRedisplay();                  // Trigger a redisplay
 }
@@ -1458,7 +1882,7 @@ void myReshape(int w, int h)
 //=======================================================================
 void LoadAssets()
 {
-	FILE* bin3ds = fopen("Models/collectible/bolt.3ds", "rb");
+	FILE* bin3ds = fopen("Track/source/welo.3ds", "rb");
 	if (!bin3ds) {
 		perror("Failed to open file");
 		exit(EXIT_FAILURE);
@@ -1466,14 +1890,22 @@ void LoadAssets()
 
 	// Loading Model files
 	car.model.Load("Models/car/car/queen.3ds");
+	car2.model.Load("Models/car/car2/queen.3ds");
+	car3.model.Load("Models/car/car3/queen.3ds");
+	car4.model.Load("Models/car/car4/queen.3ds");
+	car5.model.Load("Models/car/car5/queen.3ds");
+	car1.model.Load("Models/car/car1/queen.3ds");
+
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/desert.3ds");
 	model_stadium.Load("Track/source/stadium.3ds");
 	model_bolt.Load("Models/collectible/bolt.3ds");
-	model_tunnle.Load("Track/source/tunnle.3ds");
-
+	tunnle.Load("Track/source/tunnle.3ds");
 	model_matar.Load("Models/Matar/mater.3DS");
 	model_cage.Load("Track/source/cage.3ds");
+	cup.Load("Models/collectible/cup.3ds");
+	obstacle2.Load("Models/obstacle/barrier.3ds");
+	finish.Load("Models/Matar/finish.3DS");
 	// 
 	// Loading texture files
 	loadBMP(&tex, "Textures/nightSkybmp.bmp", true);

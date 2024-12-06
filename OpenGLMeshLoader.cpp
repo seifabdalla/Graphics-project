@@ -5,6 +5,8 @@
 #include <cmath>
 #include <iostream>
 #include "Car.h"
+#include "fmod.hpp"
+
 
 #define DEG2RAD(a) (a * 0.0174532925)
 #define M_PI 3.14159265358979323846
@@ -13,7 +15,58 @@ using namespace std;
 bool track1Win = false;
 bool cutScene1 = false;
 
+FMOD::System* systemsound = nullptr;
+FMOD::Sound* backgroundMusic = nullptr;
+FMOD::Sound* carMovingSound = nullptr;
+FMOD::Sound* carHittingSound = nullptr;
+FMOD::Sound* collectibleHittingSound = nullptr;
+FMOD::Channel* musicChannel = nullptr;
+FMOD::Channel* carMovingChannel = nullptr;
+FMOD::Channel* carHittingChannel = nullptr;
+FMOD::Channel* collectibleHittingChannel = nullptr;
+void initFMOD() {
+	FMOD::System_Create(&systemsound);
+	systemsound->init(512, FMOD_INIT_NORMAL, 0);
+	systemsound->createSound("background.mp3", FMOD_LOOP_NORMAL, 0, &backgroundMusic);
+	systemsound->createSound("carMoving.mp3", FMOD_DEFAULT, 0, &carMovingSound);
+	systemsound->createSound("car_Hit.mp3", FMOD_DEFAULT, 0, &carHittingSound);
+	systemsound->createSound("collectibleHit.mp3", FMOD_DEFAULT, 0, &collectibleHittingSound);
+	systemsound->playSound(backgroundMusic, 0, false, &musicChannel);
+	musicChannel->setVolume(0.1f);
 
+}
+void playcarMovingSound() {
+	bool isPlaying = false;
+	carMovingChannel->isPlaying(&isPlaying);
+	if(!isPlaying)
+	systemsound->playSound(carMovingSound, 0, false, &carMovingChannel);
+
+	carMovingChannel->setVolume(0.03);
+	
+
+}
+
+void playcarHitSound() {
+	bool isPlaying = false;
+	carMovingChannel->stop();
+	carHittingChannel->isPlaying(&isPlaying);
+	if (!isPlaying)
+		systemsound->playSound(carHittingSound, 0, false, &carHittingChannel);
+
+
+
+}
+
+void playCollectibleSound() {
+	bool isPlaying = false;
+	//carMovingChannel->stop();
+	collectibleHittingChannel->isPlaying(&isPlaying);
+	if (!isPlaying)
+		systemsound->playSound(collectibleHittingSound, 0, false, &collectibleHittingChannel);
+
+	collectibleHittingChannel->setVolume(1);
+
+}
 int track = 1;
 
 bool bolt1=true;bool bolt2 = true;bool bolt3 = true;bool bolt4 = true;bool bolt5 = true;
@@ -114,6 +167,7 @@ bool speedBoostActive = false; // Whether the speed boost is active
 float speedBoostTimer = 0.0f;  // Timer for speed boost countdown
 
 GLuint tex;
+GLuint texSky;
 char title[] = "3D Model Loader Sample";
 
 // 3D Projection Options
@@ -193,6 +247,7 @@ float playerZPos = 0.0f;
 
 void updateSpeedBoostTimer(float deltaTime) {
 	if (speedBoostActive) {
+		
 		speedBoostTimer -= deltaTime; // Reduce the timer
 		if (speedBoostTimer <= 0.0f) {
 			speedBoostActive = false; // Deactivate boost
@@ -332,8 +387,11 @@ bool checkCollision(float playerX, float playerZ, float boltX, float boltZ, floa
 
 void activateSpeedBoost() {
 	moveSpeed +=1 ;          // Increase speed
-	speedBoostActive = true;     // Activate boost
-	speedBoostTimer = 2.5f;      // Set 2-second timer
+	speedBoostActive = true;
+	// Activate boost
+	speedBoostTimer = 2.5f; 
+	// Set 2-second timer
+	playCollectibleSound();
 }
 
 void checkBoltCollisions(float playerX, float playerZ) {
@@ -573,6 +631,7 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)
 			|| isColliding(cornerX, cornerZ, Obj4XPos, Obj4ZPos) || isColliding(cornerX, cornerZ, Obj5XPos, Obj5ZPos) || isColliding(cornerX, cornerZ, Obj6XPos, Obj6ZPos)
 			|| isColliding(cornerX, cornerZ, Obj7XPos, Obj7ZPos) || isColliding(cornerX, cornerZ, Obj8XPos, Obj8ZPos) || isColliding(cornerX, cornerZ, Obj9XPos, Obj9ZPos)) {
+			playcarHitSound();
 			return false; // One corner is out of bounds
 		}
 
@@ -580,7 +639,7 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 
 	}
 	   
-
+	playcarMovingSound();
 	return true; // All corners are within bounds
 }
 void moveFront(float x, float z, float angle, float speed) {
@@ -802,16 +861,166 @@ void myInit(void)
 //=======================================================================
 // Display Function
 //=======================================================================
+float timeOfDay = 0.0f;  // Value from 0.0 (night) to 4.0 (day)
+float transitionSpeed = 0.001f;  // Speed of transition (adjust this value)
+bool isDay = true;  // Track if it's day or night
+
+// Function to interpolate between two values
+float lerp(float start, float end, float t) {
+	float smoothedT = (1 - cos(t * M_PI)) / 2; // Smoothstep-like function
+	return start + smoothedT * (end - start);
+}
+
+// Function to update the time of day and the cycle behavior
+void UpdateTimeOfDay() {
+	timeOfDay += transitionSpeed;
+	if (timeOfDay > 4.0f) {
+		timeOfDay = 0.0f;  // Reset to night when it reaches day
+	}
+}
+
+// Function to update the time of day and the cycle behavior
+void SetupLight() {
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+
+	// Light position (simulating sunlight direction)
+	GLfloat lightPosition[] = { 0.0f, 1.0f, 0.0f, 0.0f }; // Directional light
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
+	// Initialize light properties
+	GLfloat ambientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	GLfloat diffuseLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	GLfloat specularLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	float t = timeOfDay / 4.0f;  // Normalize time to [0, 1]
+	std::cout << t << endl;
+	// Smooth day-night transitions using phases
+	if (timeOfDay >= 0.0f && timeOfDay <= 1.0f) {
+		// Dawn (night to day transition)
+		ambientLight[0] = lerp(0.05f, 0.4f, t*5);  // Low red
+		ambientLight[1] = lerp(0.05f, 0.5f, t * 5);  // Moderate green
+		ambientLight[2] = lerp(0.1f, 0.8f, t * 5);   // Strong blue
+		diffuseLight[0] = lerp(0.1f, 0.8f, t * 5);
+		diffuseLight[1] = lerp(0.1f, 0.9f, t * 5);
+		diffuseLight[2] = lerp(0.2f, 1.0f, t * 5);
+	}
+	else if (timeOfDay > 1.0f && timeOfDay <= 2.0f) {
+		// Daytime (full brightness)
+		float t2 = (timeOfDay - 1.0f) / 1.0f;
+		ambientLight[0] = lerp(0.4f, 0.5f, t2);  // Balanced lighting
+		ambientLight[1] = lerp(0.5f, 0.5f, t2);
+		ambientLight[2] = lerp(0.8f, 0.6f, t2);
+		diffuseLight[0] = 1.0f;
+		diffuseLight[1] = 1.0f;
+		diffuseLight[2] = 0.9f;
+	}
+	else if (timeOfDay > 2.0f && timeOfDay <= 3.0f) {
+		// Dusk (day to night transition)
+		float t3 = (timeOfDay - 2.0f) / 1.0f;
+		ambientLight[0] = lerp(0.5f, 0.1f, t3);
+		ambientLight[1] = lerp(0.5f, 0.05f, t3);
+		ambientLight[2] = lerp(0.6f, 0.2f, t3);
+		diffuseLight[0] = lerp(1.0f, 0.3f, t3);
+		diffuseLight[1] = lerp(0.9f, 0.2f, t3);
+		diffuseLight[2] = lerp(0.8f, 0.1f, t3);
+	}
+	else if (timeOfDay > 3.0f && timeOfDay <= 4.0f) {
+		// Nighttime (dim light)
+		float t4 = (timeOfDay - 3.0f) / 1.0f;
+		ambientLight[0] = lerp(0.1f, 0.05f, t4);
+		ambientLight[1] = lerp(0.05f, 0.05f, t4);
+		ambientLight[2] = lerp(0.2f, 0.1f, t4);
+		diffuseLight[0] = lerp(0.3f, 0.1f, t4);
+		diffuseLight[1] = lerp(0.2f, 0.05f, t4);
+		diffuseLight[2] = lerp(0.1f, 0.05f, t4);
+	}
+
+	// Apply lighting properties
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+}
+
+
+
+
+
+float blendFactor;
+float darknessFactor = 1.0f;  // 1.0 = fully bright, 0.0 = fully dark           // Tracks if it’s day or night
+int frameCounter = 0;        // Frame counter to manage timing
+const int totalCycleTime = 600; // Total time for one full day-night cycle (in frames)
+const int holdTime = 100;
+void RenderSkybox(float blendFactor) {
+	glPushMatrix();
+	//glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
+	glScalef(50, 50, 50);  // Increase the size of the skybox to fully cover the camera view
+
+	// Enable texture mapping
+	glEnable(GL_TEXTURE_2D);
+	if (timeOfDay > 2.0f) {
+		// Nighttime (use night skybox texture)
+		glBindTexture(GL_TEXTURE_2D, tex);
+	}
+	else {
+		// Daytime (use day skybox texture)
+		glBindTexture(GL_TEXTURE_2D, texSky);
+	}
+
+	// Draw the skybox cube
+	glBegin(GL_QUADS);
+
+	// Front face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, 100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, 100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+
+	// Back face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, -100.0);
+
+	// Top face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+
+	// Bottom face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
+
+	// Right face
+	glTexCoord2f(0.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
+
+	// Left face
+	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
+	glTexCoord2f(1.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
+	glTexCoord2f(1.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
+	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
+
+	glEnd();
+
+	glDisable(GL_TEXTURE_2D);
+
+	glPopMatrix();
+
+
+}
+
 void myDisplay(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-
-	GLfloat lightIntensity[] = { 0.7, 0.7, 0.7, 1.0f };
-	GLfloat lightPosition[] = { 0.0f, 100.0f, 0.0f, 0.0f };
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, lightIntensity);
+	SetupLight();
 	setupCamera();
 
 
@@ -977,66 +1186,51 @@ void myDisplay(void)
 
 
 
-	//sky box
-	glPushMatrix();
-	//glTranslatef(camera.playerPosition.x, camera.playerPosition.y, camera.playerPosition.z);  // Center skybox around camera
-	glScalef(50, 50, 50);  // Increase the size of the skybox to fully cover the camera view
-
-	// Enable texture mapping
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	// Draw the skybox cube
-	glBegin(GL_QUADS);
-
-	// Front face
-	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, 100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, 100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
-
-	// Back face
-	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, -100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, -100.0);
-
-	// Top face
-	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
-
-	// Bottom face
-	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
-
-	// Right face
-	glTexCoord2f(0.0, 0.0); glVertex3f(100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(100.0, 100.0, -100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(100.0, 100.0, 100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(100.0, -100.0, 100.0);
-
-	// Left face
-	glTexCoord2f(0.0, 0.0); glVertex3f(-100.0, -100.0, -100.0);
-	glTexCoord2f(1.0, 0.0); glVertex3f(-100.0, 100.0, -100.0);
-	glTexCoord2f(1.0, 1.0); glVertex3f(-100.0, 100.0, 100.0);
-	glTexCoord2f(0.0, 1.0); glVertex3f(-100.0, -100.0, 100.0);
-
-	glEnd();
-
-	glDisable(GL_TEXTURE_2D);
-
-	glPopMatrix();
-
+	RenderSkybox(blendFactor);
 	glutSwapBuffers();
+}
+    // Time to hold textures (in frames)
+void UpdateDayNightCycle() {
+	// Increment frame counter
+	frameCounter++;
+
+	// Calculate the current phase of the cycle
+	int transitionTime = (totalCycleTime - 2 * holdTime) / 2;
+
+	if (frameCounter <= transitionTime) {
+		// Day-to-night transition: Gradually darken
+		darknessFactor = 1.0f - (float)frameCounter / transitionTime;
+	}
+	else if (frameCounter <= transitionTime + holdTime) {
+		// Hold night state: Fully dark
+		darknessFactor = 0.0f;
+		isDay = false;
+	}
+	else if (frameCounter <= 2 * transitionTime + holdTime) {
+		// Night-to-day transition: Gradually brighten
+		darknessFactor = (float)(frameCounter - transitionTime - holdTime) / transitionTime;
+	}
+	else if (frameCounter <= 2 * transitionTime + 2 * holdTime) {
+		// Hold day state: Fully bright
+		darknessFactor = 1.0f;
+		isDay = true;
+	}
+	else {
+		// Reset cycle
+		frameCounter = 0;
+	}
+}
+
+void updateFMOD() {
+	systemsound->update();
 }
 
 void idleFunction() {
 	float deltaTime = 0.016f; // Assume ~60 FPS (16ms per frame)
-
+	updateFMOD();
+	UpdateDayNightCycle();
+	UpdateTimeOfDay();
+	  // Outputs 0.0 to 1.0
 	updateBoltRotation();                 // Rotate the bolts
 	checkBoltCollisions(playerXPos, playerZPos); // Check collisions
 	updateSpeedBoostTimer(deltaTime);     // Update the speed boost timer
@@ -1117,6 +1311,7 @@ void myMouse(int button, int state, int x, int y)
 	}
 }
 
+
 //=======================================================================
 // Reshape Function
 //=======================================================================
@@ -1158,14 +1353,16 @@ void LoadAssets()
 	car.model.Load("Models/car/car/queen.3ds");
 	model_obstacle.Load("Models/obstacle/obstacle.3ds");
 	model_track.Load("Track/source/weloTrack.3ds");
-	model_stadium.Load("Track/source/stadium.3ds");
+	//model_stadium.Load("Track/source/stadium.3ds");
 	model_bolt.Load("Models/collectible/bolt.3ds");
 
 	model_matar.Load("Models/Matar/mater.3DS");
 	model_cage.Load("Track/source/cage.3ds");
 	// 
 	// Loading texture files
-	loadBMP(&tex, "Textures/blu-sky-3.bmp", true);
+	loadBMP(&tex, "Textures/nightSkybmp.bmp", true);
+	loadBMP(&texSky, "Textures/SkySun.bmp", true);
+
 }
 
 //=======================================================================
@@ -1184,6 +1381,7 @@ void main(int argc, char** argv)
 	glutInitWindowPosition(100, 150);
 
 	glutCreateWindow(title);
+	initFMOD();
 
 	glutDisplayFunc(myDisplay);
 

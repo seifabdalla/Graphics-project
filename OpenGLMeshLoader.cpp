@@ -437,27 +437,22 @@ void checkBoltCollisions(float playerX, float playerZ) {
 		
 		bolt1 = false;
 		activateSpeedBoost(); // Activate speed boost
-		std::cout << "Collision with Bolt 1!" << std::endl;
 	}
 	if (bolt2 && checkCollision(playerX, playerZ, -15, 224, collisionThreshold)) {
 		bolt2 = false;
 		activateSpeedBoost();
-		std::cout << "Collision with Bolt 2!" << std::endl;
 	}
 	if (bolt3 && checkCollision(playerX, playerZ, 125, 212, collisionThreshold)) {
 		bolt3 = false;
 		activateSpeedBoost();
-		std::cout << "Collision with Bolt 3!" << std::endl;
 	}
 	if (bolt4 && checkCollision(playerX, playerZ, 135, 78, collisionThreshold)) {
 		bolt4 = false;
 		activateSpeedBoost();
-		std::cout << "Collision with Bolt 4!" << std::endl;
 	}
 	if (bolt5 && checkCollision(playerX, playerZ, 178, -62, collisionThreshold)) {
 		bolt5 = false;
 		activateSpeedBoost();
-		std::cout << "Collision with Bolt 5!" << std::endl;
 	}
 }
 
@@ -513,13 +508,13 @@ Boundary roadj3(69.6f, 92.0f, 27.0f, 70.0f);// Track 4
 Boundary trackj4(68.0f, 90.0f, 12.0f, 45.0f);// Track 4
 Boundary roadj4(86.0f, 172.0f, 10.0f, 28.0f);// Track 4
 /////////////////////////////////////////////////////////////
-Boundary trackj5(161.294f, 179.294f, -62.6447f, -46.6447f);// Track 4
-Boundary roadj5(162.7f, 180.7f, -50.6f, 9.5f);// Track 4
+Boundary trackj5(161.294f, 179.294f, -78.6447f, -36.6447f);// Track 4
+Boundary roadj5(158.7f, 183.7f, -60.6f, 19.5f);// Track 4
 Boundary trackj6(163.818f, 178.18f, -68.6447f, -46.6447f);// Track 4
 /////////////////////////////////////////
 Boundary roadj6(175.0f, 230.f, -80.0f, -59.32f);// Track 4
 Boundary trackj7(214.0f, 239.0f, -83.2103, -63.2103);// Track 4
-Boundary roadj7(222.0f, 242.5f, -216.0f, -83.0f);// Track 4
+Boundary roadj7(212.0f, 237.5f, -226.0f, -83.0f);// Track 4
 Boundary finish1(210, 260, -150, -140);
 
 
@@ -529,99 +524,66 @@ bool isWithinBoundaries(float x, float z, const std::string& type) {
 	// Check for each boundary individually
 
 	if (track1.contains(x, z)) {
-		currentTrack = 1;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 
 	}
 	else if (track2.contains(x, z)) {
-		currentTrack = 2;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (uTurn23.contains(x, z)) {
-		std::cout << "Car is in U-turn 2!" << std::endl;
 		return true;
 	}
 	else if (track3.contains(x, z)) {
-		currentTrack = 3;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (uTurn34.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (track4.contains(x, z)) {
-		currentTrack = 4;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj1.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
-		return true;
+	return true;
 	}
 	else if (roadj1.contains(x, z)) {
-		currentTrack = 5;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj2.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj2.contains(x, z)) {
-		currentTrack = 6;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj3.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj3.contains(x, z)) {
-		currentTrack = 7;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj4.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj4.contains(x, z)) {
-		currentTrack = 8;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj5.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj5.contains(x, z)) {
-		currentTrack = 9;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj6.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj6.contains(x, z)) {
-		currentTrack = 10;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
 	else if (trackj7.contains(x, z)) {
-		std::cout << "Car is in U-turn 3!" << std::endl;
 		return true;
 	}
 	else if (roadj7.contains(x, z)) {
-		currentTrack = 11;
-		std::cout << "Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 		return true;
 	}
-	// If no boundary matches, the position is out of bounds
-	std::cout << "False Track: " << currentTrack << ", X: " << x << ", Z: " << z << std::endl;
 	return false;
 }
 
@@ -702,12 +664,10 @@ void moveBackward(float x, float z, float angle, float speed) {
 void checkWin() {
 	if (finish1.contains(playerXPos, playerZPos)  ) {
 		cutScene1 = true;
-		std::cout << "Car reached finish line 1" << std::endl;
 	}
 
 	if (finish1.contains(playerXPos, playerZPos) && track1Win) {
 		gamewin = true;
-		std::cout << "Car reached finish line 1" << std::endl;
 	}
 }
 	void checkLose() {
@@ -773,16 +733,16 @@ void keyboard(unsigned char key, int x, int y) {
 	float speed = moveSpeed;                  // Movement speed
 	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
 
-	if (key == 's' && !cutScene1 && !gameOver) {
+	if (key == 's' && !cutScene1 && !gameOver && !gamewin) {
 		moveBackward(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'w' && !cutScene1 && !gameOver) {
+	else if (key == 'w' && !cutScene1 && !gameOver && !gamewin) {
 		moveFront(playerXPos, playerZPos, characterAngle, speed);
 	}
-	else if (key == 'd' && !cutScene1 && !gameOver) {
+	else if (key == 'd' && !cutScene1 && !gameOver && !gamewin) {
 		rotateRight(characterAngle, speed, rotationSpeed);
 	}
-	else if (key == 'a' && !cutScene1 && !gameOver) {
+	else if (key == 'a' && !cutScene1 && !gameOver && !gamewin) {
 		rotateLeft(characterAngle, speed, rotationSpeed);
 	}
 	else if (key == 't')
@@ -985,11 +945,17 @@ void updateCutscene() {
 
 		
 	}
-	if (cutsceneTimer >= 30.0f) {
+	if (cutsceneTimer >= 30.0f && cutScene1) {
 		playerZPos = playerZPos; // Finalize position at this point
 		cutScene1 = false;
 		track1Win = true;
+		bolt1 = true; bolt2 = true; bolt3 = true; bolt4 = true; bolt5 = true;
+
 	}
+
+
+
+	
 
 	glutPostRedisplay(); // Redraw the scene
 }
@@ -1152,7 +1118,6 @@ void SetupLight() {
 		GLfloat specularLight[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 		float t = timeOfDay / 4.0f;  // Normalize time to [0, 1]
-		std::cout << t << endl;
 		// Smooth day-night transitions using phases
 		if (timeOfDay >= 0.0f && timeOfDay <= 1.0f) {
 			// Dawn (night to day transition)
@@ -1233,6 +1198,14 @@ void renderScore() {
 		for (char c : scoreText) {
 			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 		}
+
+		 float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    glColor3f(1.0f, 1.0f, 1.0f);
+    glRasterPos2f(50, 620); // Adjust position below the score
+    std::string timeText = "Time: " + std::to_string(time);
+    for (char c : timeText) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+    }
 	}
 
 	else {
@@ -1407,11 +1380,6 @@ void renderConfetti() {
 
 void myDisplay(void)
 {
-	std::cout << "car" << endl;
-	std::cout << "car should glow" << endl;
-	std::cout << "car should glow" << endl;
-	std::cout << "car should glow" << endl;
-	std::cout << "car should glow" << endl;
 
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1427,7 +1395,6 @@ void myDisplay(void)
 		glRotatef(characterAngle * 180.0f / M_PI, 0.0f, 1.0f, 0.0f);
 
 		if (isGlowing && glowingtime <= 3) {
-			std::cout << "car should glow" << endl;
 
 			// Determine which car to render based on glowingTime
 			int glowingStage = static_cast<int>(glowingtime / 0.2f); // Each car renders for 0.5 seconds
@@ -1535,7 +1502,7 @@ void myDisplay(void)
 
 			glPopMatrix();
 		}
-		if (bolt1) {
+		if (bolt5) {
 			glPushMatrix();
 			glTranslatef(178, 4.2, -62);
 

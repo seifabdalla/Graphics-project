@@ -1,6 +1,6 @@
 ﻿  OpenGLMeshLoader.cpp
 C:\Users\LENOVO\Desktop\New folder (2)\Graphics-project\TextureBuilder.h(27,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
 C:\Users\LENOVO\Desktop\New folder (2)\Graphics-project\TextureBuilder.h(28,52): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
-C:\Users\LENOVO\Desktop\New folder (2)\Graphics-project\OpenGLMeshLoader.cpp(1877,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\LENOVO\Desktop\New folder (2)\Graphics-project\OpenGLMeshLoader.cpp(1889,17): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
 Car.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/INCREMENTAL:NO' specification
   OpenGLMeshLoader.vcxproj -> C:\Users\LENOVO\Desktop\New folder (2)\Graphics-project\Debug\OpenGLMeshLoader19.exe

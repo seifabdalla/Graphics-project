@@ -71,7 +71,7 @@ void playGameWin() {
 	if(!isPlaying)
 	systemsound->playSound(gameWin, 0, false, &gameWinCh);
 
-	gameWinCh->setVolume(0.03);
+	gameWinCh->setVolume(0.3);
 	
 
 }
@@ -121,6 +121,7 @@ bool bolt1=true;bool bolt2 = true;bool bolt3 = true;bool bolt4 = true;bool bolt5
 int WIDTH = 1280;
 int HEIGHT = 720;
 int score = 0;
+int health = 100;
 float PlayerXPos = 0.0f;
 float PlayerZPos = 0.0f;
 float PlayerYPos = 2.0f;  // Adjust for ground level
@@ -368,33 +369,7 @@ void setupCamera() {
 
 
 
-void MouseMotion(int x, int y) {
-	if (rightMouseDown) {
-		float sensitivity = 0.1f;
 
-		// Adjust pitch with right-click + vertical mouse movement
-		float deltaY = y - lastMouseY;
-		camera.pitch -= deltaY * sensitivity; // Move pitch based on vertical mouse movement
-
-		// Clamp pitch to avoid flipping the camera upside down
-		if (camera.pitch > 89.0f) camera.pitch = 89.0f;
-		if (camera.pitch < -89.0f) camera.pitch = -89.0f;
-	}
-	else {
-		// Adjust angleAroundPlayer with horizontal mouse movement
-		float sensitivity = 0.35f;
-		float deltaX = x - lastMouseX;
-		camera.angleAroundPlayer += deltaX * sensitivity;
-	}
-
-	// Update camera position based on new pitch and angleAroundPlayer
-	camera.updateCameraPosition(characterAngle);
-
-	lastMouseX = x;
-	lastMouseY = y;
-
-	glutPostRedisplay();
-}
 
 
 bool isColliding(float playerX, float playerZ, float objX, float objZ) {
@@ -517,6 +492,23 @@ Boundary trackj7(214.0f, 239.0f, -83.2103, -63.2103);// Track 4
 Boundary roadj7(212.0f, 237.5f, -226.0f, -83.0f);// Track 4
 Boundary finish1(210, 260, -150, -140);
 
+void mouseClick(int button, int state, int x, int y) {
+	if (state == GLUT_DOWN) { // Only act on mouse button press
+		if (button == GLUT_LEFT_BUTTON) {
+			camera.currentView = THIRD; // Switch to third-person view
+			std::cout << "Switched to Third-Person View" << std::endl;
+		}
+		else if (button == GLUT_RIGHT_BUTTON) {
+			camera.currentView = FIRST; // Switch to first-person view
+			std::cout << "Switched to First-Person View" << std::endl;
+		}
+	}
+	// Update camera position and redraw the scene
+	camera.playerPosition = Vector3f(playerXPos, PlayerYPos, playerZPos);
+	camera.updateCameraPosition(characterAngle);
+	glutPostRedisplay();
+}
+
 
 bool isWithinBoundaries(float x, float z, const std::string& type) {
 	static int currentTrack = 1; // Default to track 1
@@ -624,7 +616,7 @@ bool canMove(float x, float z, float angle, float speed, bool isForward) {
 		if (!isWithinBoundaries(cornerX, cornerZ, "") || isColliding(cornerX,cornerZ,ObjXPos,ObjZPos) || isColliding(cornerX,cornerZ,Obj2XPos,Obj2ZPos ) || isColliding(cornerX, cornerZ, Obj3XPos, Obj3ZPos)
 			|| isColliding(cornerX, cornerZ, Obj4XPos, Obj4ZPos) || isColliding(cornerX, cornerZ, Obj5XPos, Obj5ZPos) || isColliding(cornerX, cornerZ, Obj6XPos, Obj6ZPos)
 			|| isColliding(cornerX, cornerZ, Obj7XPos, Obj7ZPos) || isColliding(cornerX, cornerZ, Obj8XPos, Obj8ZPos) || isColliding(cornerX, cornerZ, Obj9XPos, Obj9ZPos)) {
-			score -= 10;
+			health -= 1;
 			playcarHitSound();
 			return false; // One corner is out of bounds
 		}
@@ -682,7 +674,7 @@ void checkWin() {
 
 		}
 
-		if (score <= -500) {
+		if (health <= 0) {
 			gameOver = true;
 			playGameLose();
 
@@ -729,6 +721,7 @@ void rotateLeft(float& angle, float speed, float rotationSpeed) {
 		playerZPos += -1 * cos(angle);
 	}
 }
+
 void keyboard(unsigned char key, int x, int y) {
 	float speed = moveSpeed;                  // Movement speed
 	float rotationSpeed = 5.0f * (M_PI / 180.0f); // Convert degrees to radians for rotation
@@ -1100,12 +1093,10 @@ void SetupLight() {
 	}
 	else {
 
+
 		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
 
 		glEnable(GL_LIGHT0);
-		glEnable(GL_LIGHT1);
-		glEnable(GL_LIGHT2);
 		glDisable(GL_LIGHT3);
 
 		// Light position (simulating sunlight direction)
@@ -1190,7 +1181,7 @@ void renderScore() {
 
 	glDisable(GL_DEPTH_TEST);
 
-	if (!gameOver) {
+	if (!gameOver && ! gamewin) {
 		// Render score
 		glColor3f(1.0f, 1.0f, 1.0f);
 		glRasterPos2f(50, 650); // Adjust for your screen resolution
@@ -1199,20 +1190,41 @@ void renderScore() {
 			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 		}
 
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glRasterPos2f(50, 620); // Adjust position below the score
+		std::string h = "Health: " + std::to_string(health);
+		for (char c : h) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+
 		 float time = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
     glColor3f(1.0f, 1.0f, 1.0f);
-    glRasterPos2f(50, 620); // Adjust position below the score
+    glRasterPos2f(50, 590); // Adjust position below the score
     std::string timeText = "Time: " + std::to_string(time);
     for (char c : timeText) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
     }
 	}
 
-	else {
+	else if(gameOver && !gamewin) {
 		glColor3f(1.0f, 1.0f, 1.0f);
 		glRasterPos2f(650, 350); // Adjust for your screen resolution
 		std::string scoreText = "GAME OVER" ;
 		for (char c : scoreText) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glRasterPos2f(650, 315); // Adjust for your screen resolution
+		std::string f = "Score: " + std::to_string(score);
+		for (char c : f) {
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+		}
+	}
+	else {
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glRasterPos2f(650, 350); // Adjust for your screen resolution
+		std::string s = "GAME WIN";
+		for (char c : s) {
 			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
 		}
 	}
@@ -1931,7 +1943,7 @@ void main(int argc, char** argv)
 
 	glutMotionFunc(myMotion);
 
-	glutMouseFunc(myMouse);
+	glutMouseFunc(mouseClick);
 
 	glutReshapeFunc(myReshape);
 	glutIdleFunc(idleFunction); // Set idle function for smooth updates
